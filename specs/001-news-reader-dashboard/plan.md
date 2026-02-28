@@ -96,6 +96,7 @@ src-tauri/
 │   │   └── keychain.rs       # OS keychain abstraction
 │   └── db/
 │       ├── mod.rs            # SQLite connection pool
+│       ├── seed.rs           # Default source seeding
 │       └── migrations/       # Schema migrations
 ├── Cargo.toml
 └── tauri.conf.json
@@ -124,6 +125,7 @@ src/                          # React frontend
 │   └── Layout/
 │       ├── AppShell.tsx
 │       ├── Sidebar.tsx
+│       ├── ErrorBoundary.tsx
 │       └── OfflineIndicator.tsx
 ├── hooks/                    # React hooks for Tauri IPC
 ├── services/                 # Frontend service layer (Tauri invoke wrappers)
@@ -150,4 +152,4 @@ backend via Tauri's IPC command system. This structure maps directly to Tauri's 
 |--------|----------|-----------|
 | Dual-language (Rust + TypeScript) | Required by Tauri architecture | Single-language alternatives (pure Electron/JS) trade app size and performance; Tauri's system WebView satisfies FR-039 natively |
 | WebView fallback (FR-039) | Built into Tauri | No additional complexity — Tauri apps already run in a WebView; the fallback simply loads the URL directly |
-| OS keychain integration | Tauri plugin `tauri-plugin-keychain` | Required by FR-032; platform-native, no custom crypto needed |
+| OS keychain integration | `keyring` crate | Required by FR-032; platform-native, no custom crypto needed |
