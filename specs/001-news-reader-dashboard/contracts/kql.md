@@ -15,12 +15,17 @@ These commands handle AI-powered KQL query generation from article content (FR-0
 
 Sends article content to the configured LLM service and returns KQL query suggestions (FR-023–FR-028).
 
+> **Constitution II — AI/LLM Governance**: The frontend MUST display a confirmation dialog
+> before calling this command. The dialog MUST show the target endpoint URL and article title.
+> The `user_confirmed` parameter proves the user explicitly approved this invocation.
+
 **Direction**: Frontend → Backend
 **Parameters**:
 
 ```typescript
 type GenerateParams = {
   article_id: number;
+  user_confirmed: boolean;  // MUST be true — proof of explicit user consent
 };
 ```
 
@@ -43,6 +48,7 @@ type KqlSuggestion = {
 ```
 
 **Errors**:
+- `USER_NOT_CONFIRMED` — `user_confirmed` is false or missing; frontend must show confirmation dialog
 - `NOT_CONFIGURED` — LLM endpoint or API key not set (FR-029); frontend should redirect to Settings
 - `ARTICLE_NOT_FOUND` — No article with the given ID
 - `ARTICLE_NO_CONTENT` — Article body not extracted yet; trigger extraction first
@@ -51,15 +57,16 @@ type KqlSuggestion = {
 - `LLM_NO_SUGGESTIONS` — LLM indicated no detectable threat indicators in the article
 
 **Behavior**:
-1. Validates LLM endpoint + API key are configured (FR-029)
-2. Retrieves article `body_text` from DB
-3. Constructs Chat Completions request:
+1. Validates `user_confirmed == true` (Constitution II — rejects if false)
+2. Validates LLM endpoint + API key are configured (FR-029)
+3. Retrieves article `body_text` from DB
+4. Constructs Chat Completions request:
    - System prompt: KQL expert context, target Sentinel/Defender XDR tables
    - User prompt: article text (truncated to ~4000 tokens if needed)
    - Response format instruction: JSON array of `{ query, description, table }`
-4. Sends POST to configured endpoint with `Authorization: Bearer {api_key}` header
-5. Parses response, validates each suggestion, stores in `kql_suggestions` table
-6. Returns stored suggestions
+5. Sends POST to configured endpoint with `Authorization: Bearer {api_key}` header
+6. Parses response, validates each suggestion, stores in `kql_suggestions` table (local only — Constitution III)
+7. Returns stored suggestions
 
 ---
 

@@ -37,17 +37,24 @@ from article context.
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-The project constitution (`.specify/memory/constitution.md`) contains only unfilled template
-placeholders — no principles, constraints, or governance rules have been ratified. Therefore:
+**Constitution**: v1.0.0 (ratified 2026-02-28) — 4 principles, 2 policy sections.
 
-- **No constitutional gates exist to evaluate against.**
-- **No violations are possible.**
-- **Pre-Phase 0 status: PASS (vacuously) — proceeded to Phase 0.**
-- **Post-Phase 1 re-check (2026-02-28)**: Constitution still contains only template placeholders. No new violations introduced by design artifacts (data-model.md, contracts/, quickstart.md). **Status: PASS (vacuously).**
+| Principle | Status | Evidence |
+|-----------|--------|----------|
+| I. Research-Only Purpose | **PASS** | App is personal-use cybersecurity news/CTI tool. No commercial redistribution features. Spec scoped to personal dashboard + reader + search + KQL gen. |
+| II. AI/LLM Governance (NON-NEGOTIABLE) | **PASS** | FR-029 requires API key before AI use. FR-032 mandates keychain storage. KQL contract `kql::generate` requires `user_confirmed: true` parameter. `NOT_CONFIGURED` error blocks unconfigured use. `kql::generate` behavior step 1 validates credentials before any request. |
+| III. Data Containment | **PASS** | KQL suggestions stored in local SQLite `kql_suggestions` table only. No telemetry, analytics, or external forwarding in any contract. All IPC commands return results to frontend UI only. |
+| IV. Secret Security (NON-NEGOTIABLE) | **PASS** | FR-032 specifies OS keychain via `keyring` crate. `settings::set_api_key` stores in keychain with service `cyber-news-reader`. `settings::get_all` returns `has_api_key: boolean` — never the key itself. No `.env` files or plaintext config for secrets in project structure. |
 
-> **Recommendation**: The constitution should be populated before implementation begins so that
-> development practices (testing discipline, code structure, versioning) are governed. This does
-> not block planning or task generation.
+| Policy Section | Status | Evidence |
+|---------------|--------|----------|
+| Security Requirements | **PASS** | Keychain-only storage (contracts/settings.md). No secret logging (implementation constraint). HTTPS-only for external calls except localhost (reqwest default + config). |
+| AI Usage Policy | **PASS** | AI limited to KQL generation (FR-023–FR-030). User-initiated only ("Generate KQL Queries" button). Confirmation dialog required (constitution II + `user_confirmed` param). Result containment (local DB only). Error transparency (FR-030 + `LLM_ERROR`/`LLM_TIMEOUT` errors). |
+
+**Pre-Phase 0 status**: PASS (vacuously — constitution not yet ratified).
+**Post-Phase 1 re-check (2026-02-28)**: PASS — all 4 principles and 2 policy sections satisfied.
+
+> **No violations. No Complexity Tracking entries required.**
 
 ## Project Structure
 

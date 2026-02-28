@@ -26,4 +26,16 @@ TypeScript 5.x (frontend), Rust (backend/core via Tauri v2): Follow standard con
 - 001-news-reader-dashboard: Added TypeScript 5.x (frontend), Rust (backend/core via Tauri v2) + Tauri v2, React 19, shadcn/ui (Radix UI + Tailwind CSS), SQLite via `rusqlite` (bundled + FTS5), `feed-rs` (Rust RSS/Atom parser), `readability` + `scraper` (content extraction), `reqwest` + `tokio` (async HTTP), `keyring` (OS keychain)
 
 <!-- MANUAL ADDITIONS START -->
+
+## Constitution
+
+This project is governed by `.specify/memory/constitution.md` (v1.0.0). All code changes MUST comply with:
+
+1. **Research-Only Purpose** — personal-use cybersecurity research tool only
+2. **AI/LLM Governance (NON-NEGOTIABLE)** — all LLM calls require authenticated access AND explicit user confirmation before sending
+3. **Data Containment** — AI-generated results stored locally only, never forwarded to external services
+4. **Secret Security (NON-NEGOTIABLE)** — no plaintext secrets in source code; API keys in OS keychain only via `keyring` crate
+
+When implementing AI/LLM features: always require `user_confirmed: true` parameter, validate credentials before requests, and store results in local SQLite only.
+
 <!-- MANUAL ADDITIONS END -->
