@@ -136,4 +136,4 @@ This project follows a [constitution](.specify/memory/constitution.md) with four
 
 ## License
 
-Private project. Not licensed for redistribution.
+[MIT](LICENSE)
