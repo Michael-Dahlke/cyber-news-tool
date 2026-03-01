@@ -27,6 +27,13 @@
 - Q: What is the default article cache retention period? → A: 30 days — cached articles are automatically evicted after 30 days; configurable by the user in Settings.
 - Q: How should the app handle articles that require JavaScript rendering? → A: Fallback to in-app WebView — attempt HTTP extraction first; if the body is empty or unparseable, render the page in an embedded WebView with ad-blocking applied.
 
+### Session 2026-03-01
+
+- Q: What does the 20GB storage limit cover, and how does it interact with the existing 30-day eviction rule? → A: The 20GB cap applies to cached article bodies only (not feed metadata or the index). When the cap is reached, the oldest-cached article bodies are purged first regardless of their age relative to the 30-day window; both rules operate simultaneously.
+- Q: How should browsing articles by source be accessible? → A: Both — the source name is a tappable link on every article card and in the reader view header (opens a filtered "articles from this source" view), AND a dedicated Sources browser page lists all active sources with the same filtered view on tap.
+- Q: When should feed refresh be triggered? → A: On cold launch (process start) and when the app resumes from background after a user-configurable idle threshold (default: 4 hours). Navigating back to the dashboard from the article reader or any other in-app view MUST NOT trigger a refresh. A manual refresh button is always available in the dashboard toolbar.
+- Q: Should the app support non-RSS/Atom feed sources? → A: Deferred — non-RSS source integration (e.g., HTML scraping) is out of scope for this version and will be addressed in a future specification. Note: the Microsoft Security Blog Threat Intelligence topic feed (`https://www.microsoft.com/en-us/security/blog/topic/threat-intelligence/feed/`) is a valid RSS 2.0 feed and is added to the built-in default source list.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Categorized News Dashboard (Priority: P1)
@@ -143,6 +150,8 @@ content are returned and displayed.
 - What happens when the configured AI service returns malformed or non-KQL text?
 - How does the app behave during the first launch when no feeds have been populated yet?
 - What if an article URL redirects through multiple hops before reaching the content?
+- What happens when the article body cache approaches but has not yet reached the 20 GB cap — should the user receive a warning?
+- Integration of non-RSS/Atom sources (e.g., HTML scraping of pages without a feed) is **deferred** to a future specification. The Microsoft Security Blog Threat Intelligence topic page is already covered by its RSS feed (`https://www.microsoft.com/en-us/security/blog/topic/threat-intelligence/feed/`).
 
 ## Requirements *(mandatory)*
 
@@ -155,7 +164,7 @@ content are returned and displayed.
 - **FR-003**: "Microsoft News" MUST display only articles classified under the Microsoft category from the past 7 days. Classification occurs via: (a) the article's source having a Microsoft category tag, or (b) keyword matching identifying Microsoft products, services, or security advisories in the article title or body.
 - **FR-004**: "Threat Intelligence" MUST display only articles classified under the Threat Intelligence category from the past 7 days. Classification occurs via: (a) the article's source having a Threat Intelligence category tag, or (b) keyword matching identifying named threat actor groups, malware families, or TTPs in the article title or body.
 - **FR-005**: The app MUST only surface articles from free, publicly accessible sources; no paywalled or subscription-gated content may be included.
-- **FR-006**: The dashboard MUST auto-refresh article feeds on app launch and at a regular interval (default: every 60 minutes while the app is running).
+- **FR-006**: The dashboard MUST auto-refresh article feeds on cold launch (process start) and when the app resumes from background after the user-configured idle threshold (default: 4 hours). Navigating back to the dashboard from the reader or any other in-app screen MUST NOT trigger a refresh. A visible manual refresh button MUST always be available in the dashboard toolbar.
 - **FR-007**: The app MUST display a visible "last updated" timestamp on each dashboard section.
 - **FR-008**: When no internet connection is available, the app MUST display the most recently cached articles with an offline indicator.
 
@@ -199,13 +208,25 @@ content are returned and displayed.
 
 - **FR-031**: The app MUST run natively on macOS (Apple Silicon and Intel) and Windows 10/11.
 - **FR-032**: The app MUST provide a Settings screen where the user can configure: LLM service endpoint, API key, and feed refresh interval. The LLM API key MUST be stored in the OS keychain (macOS Keychain on macOS; Windows Credential Manager on Windows) and MUST NOT be written to any plaintext file.
-- **FR-033**: The app MUST ship with a default curated list of reputable cybersecurity news sources pre-configured and active.
+- **FR-033**: The app MUST ship with a default curated list of reputable cybersecurity news sources pre-configured and active. The default list MUST include the Microsoft Security Blog Threat Intelligence topic feed (`https://www.microsoft.com/en-us/security/blog/topic/threat-intelligence/feed/`) tagged with the Threat Intelligence category.
 - **FR-034**: Users MUST be able to disable or remove any source from the default curated list.
 - **FR-035**: Users MUST be able to add custom news sources by providing an RSS/Atom feed URL.
 - **FR-036**: When a user adds a custom source, the app MUST validate that the URL is reachable and returns a parseable feed before saving it, and MUST display an error if validation fails.
 - **FR-037**: During feed ingestion, the app MUST deduplicate articles by exact URL — if the same article URL arrives from more than one source, only one copy MUST be stored and displayed.
-- **FR-038**: The app MUST automatically evict cached article content that is older than the configured cache retention period (default: 30 days). The retention period MUST be user-configurable in Settings.
+- **FR-038**: The app MUST automatically evict cached article content that is older than the configured cache retention period (default: 30 days). The retention period MUST be user-configurable in Settings. Additionally, the app MUST enforce a maximum size cap on the article body cache (default: 20 GB). When the cap is reached, the app MUST purge cached article bodies in oldest-first order until the cache size is below the cap. Both the time-based eviction and size-based cap operate simultaneously; whichever condition triggers first causes eviction. The size cap MUST be user-configurable in Settings.
 - **FR-039**: The app MUST first attempt article content extraction via HTTP fetch and HTML parsing. If the extracted body is empty or unparseable (e.g., the page requires JavaScript rendering), the app MUST fall back to displaying the article in an embedded WebView with ad-blocking rules applied. The WebView fallback MUST NOT require the user to take any action to trigger it.
+
+#### Source Browsing
+
+- **FR-040**: Every article card displayed on the dashboard, in search results, and in the reader view header MUST render the source name as a tappable link. Tapping the source name MUST open a filtered feed view showing only articles from that source.
+- **FR-041**: The app MUST provide a dedicated Sources browser page accessible from the sidebar or main navigation. The Sources page MUST list all active news sources. Tapping a source on this page MUST open the same filtered source feed view described in FR-040.
+- **FR-042**: The filtered source feed view MUST display articles from the selected source sorted by publish date (newest first) and MUST provide a navigation control to return to the previous context.
+
+#### Accessibility & Readability
+
+- **FR-043**: The reader view MUST provide a font size control allowing the user to increase or decrease the article body text size. The selected font size MUST persist across sessions.
+- **FR-044**: The reader view MUST allow the user to tap or click any inline image to open it in a full-window lightbox view that scales the image to fill the available app window. The lightbox MUST provide a dismiss control to return to the article reader view.
+- **FR-045**: The lightbox image view MUST support pinch-to-zoom (on trackpad) and scroll-to-pan interactions when the image is zoomed beyond the window bounds.
 
 ### Key Entities
 
@@ -213,7 +234,7 @@ content are returned and displayed.
 - **NewsSource**: Represents an aggregated feed origin. Key attributes: name, feed URL, feed type (RSS/Atom/API), default category tag (General / Microsoft / Threat Intelligence), active/inactive status.
 - **SearchResult**: Represents a matched article from a search query. Attributes: article reference, matched keywords, excerpt, relevance rank.
 - **KQLSuggestion**: Represents a generated KQL query. Key attributes: article reference, query text, detection description, generation timestamp, LLM service used.
-- **AppSettings**: Stores user-configurable preferences. Attributes: LLM endpoint, API key (stored in OS keychain — macOS Keychain / Windows Credential Manager), feed refresh interval, cache retention period (default: 30 days).
+- **AppSettings**: Stores user-configurable preferences. Attributes: LLM endpoint, API key (stored in OS keychain — macOS Keychain / Windows Credential Manager), feed background-resume refresh threshold (default: 4 hours), cache retention period (default: 30 days), article body cache size cap (default: 20 GB), reader font size preference.
 
 ## Success Criteria *(mandatory)*
 
