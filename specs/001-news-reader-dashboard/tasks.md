@@ -26,11 +26,11 @@
 
 **Purpose**: Initialize the Tauri v2 project with all required tooling and dependencies.
 
-- [ ] T001 Initialize Tauri v2 project with React + TypeScript template using `pnpm create tauri-app` in project root
-- [ ] T002 Configure Rust dependencies in src-tauri/Cargo.toml (tauri v2, rusqlite with bundled+fts5, feed-rs, readability, scraper, reqwest, tokio, keyring, serde, serde_json)
-- [ ] T003 [P] Configure frontend dependencies in package.json (react 19, react-dom, @tauri-apps/api, @tauri-apps/plugin-shell, tailwindcss v4, @tailwindcss/typography, lucide-react, class-variance-authority, clsx, tailwind-merge, react-hook-form, zod, react-day-picker, shiki, cmdk)
-- [ ] T004 [P] Configure Tailwind CSS v4 with shadcn/ui theme variables and dark mode in tailwind.config.ts and src/globals.css
-- [ ] T005 [P] Configure TypeScript strict mode in tsconfig.json and Vite build settings in vite.config.ts
+- [X] T001 Initialize Tauri v2 project with React + TypeScript template using `pnpm create tauri-app` in project root
+- [X] T002 Configure Rust dependencies in src-tauri/Cargo.toml (tauri v2, rusqlite with bundled+fts5, feed-rs, readability, scraper, reqwest, tokio, keyring, serde, serde_json)
+- [X] T003 [P] Configure frontend dependencies in package.json (react 19, react-dom, @tauri-apps/api, @tauri-apps/plugin-shell, tailwindcss v4, @tailwindcss/typography, lucide-react, class-variance-authority, clsx, tailwind-merge, react-hook-form, zod, react-day-picker, shiki, cmdk)
+- [X] T004 [P] Configure Tailwind CSS v4 with shadcn/ui theme variables and dark mode in tailwind.config.ts and src/globals.css
+- [X] T005 [P] Configure TypeScript strict mode in tsconfig.json and Vite build settings in vite.config.ts
 
 **Checkpoint**: `pnpm tauri dev` launches an empty app window. `cargo check` passes in src-tauri/.
 
