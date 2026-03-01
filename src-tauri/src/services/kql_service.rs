@@ -115,6 +115,9 @@ pub async fn generate_kql(
         return Err("NOT_CONFIGURED".to_string());
     }
 
+    // Security: Require HTTPS for non-localhost endpoints (T058)
+    validate_endpoint_security(&endpoint)?;
+
     let api_key = crate::services::keychain::get_api_key()
         .map_err(|e| format!("KEYCHAIN_ERROR: {e}"))?
         .ok_or_else(|| "NOT_CONFIGURED".to_string())?;
@@ -337,6 +340,17 @@ pub async fn check_config_with_db(db: Arc<Database>) -> Result<CheckConfigResult
         });
     }
 
+    // Security: Require HTTPS for non-localhost endpoints (T058)
+    if let Err(e) = validate_endpoint_security(&endpoint) {
+        return Ok(CheckConfigResult {
+            is_configured: true,
+            endpoint: mask_endpoint(&endpoint),
+            model: if model.is_empty() { None } else { Some(model) },
+            is_reachable: false,
+            error: Some(e),
+        });
+    }
+
     let api_key = crate::services::keychain::get_api_key()
         .map_err(|e| format!("KEYCHAIN_ERROR: {e}"))?
         .unwrap_or_default();
@@ -484,4 +498,23 @@ fn mask_endpoint(endpoint: &str) -> String {
     } else {
         endpoint.to_string()
     }
+}
+
+/// Security: Require HTTPS for LLM endpoints unless localhost/127.0.0.1 (T058).
+/// Localhost is exempt to support local models (Ollama, LM Studio, etc.).
+fn validate_endpoint_security(endpoint: &str) -> Result<(), String> {
+    if endpoint.starts_with("https://") {
+        return Ok(());
+    }
+    if endpoint.starts_with("http://") {
+        let after_scheme = &endpoint[7..]; // skip "http://"
+        let host = after_scheme.split('/').next().unwrap_or(after_scheme);
+        let host_no_port = host.split(':').next().unwrap_or(host);
+        if host_no_port == "localhost" || host_no_port == "127.0.0.1" || host_no_port == "[::1]" {
+            return Ok(());
+        }
+        return Err("INSECURE_ENDPOINT: LLM endpoint must use HTTPS for non-localhost URLs".to_string());
+    }
+    // Unknown scheme — reject
+    Err("INSECURE_ENDPOINT: LLM endpoint must start with https:// (or http://localhost for local models)".to_string())
 }

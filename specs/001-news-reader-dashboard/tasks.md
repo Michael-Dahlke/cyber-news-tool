@@ -152,11 +152,11 @@
 
 **Purpose**: Theme, error handling, performance, security hardening, and final validation.
 
-- [ ] T055 [P] Add dark mode theme toggle and system theme detection using Tailwind dark variant and app_settings theme preference in src/components/Layout/AppShell.tsx
-- [ ] T056 [P] Add React error boundary with user-friendly error display and recovery in src/components/Layout/ErrorBoundary.tsx
-- [ ] T057 Performance and quality validation: verify dashboard load <10s (SC-001), feed refresh <30s (SC-002), reader render <5s (SC-003), search <3s (SC-004), KQL returns ≥1 query for threat-content articles (SC-005), reader shows zero ads from top 10 sources (SC-007)
-- [ ] T058 Security hardening: validate HTTPS-only for external calls (except localhost LLM endpoints), audit that no secrets appear in logs or source, verify keychain-only storage
-- [ ] T059 Run quickstart.md validation end-to-end on macOS and verify all development workflows (dev server, build, test commands)
+- [X] T055 [P] Add dark mode theme toggle and system theme detection using Tailwind dark variant and app_settings theme preference in src/components/Layout/AppShell.tsx
+- [X] T056 [P] Add React error boundary with user-friendly error display and recovery in src/components/Layout/ErrorBoundary.tsx
+- [X] T057 Performance and quality validation: verify dashboard load <10s (SC-001), feed refresh <30s (SC-002), reader render <5s (SC-003), search <3s (SC-004), KQL returns ≥1 query for threat-content articles (SC-005), reader shows zero ads from top 10 sources (SC-007)
+- [X] T058 Security hardening: validate HTTPS-only for external calls (except localhost LLM endpoints), audit that no secrets appear in logs or source, verify keychain-only storage
+- [X] T059 Run quickstart.md validation end-to-end on macOS and verify all development workflows (dev server, build, test commands)
 
 ---
 

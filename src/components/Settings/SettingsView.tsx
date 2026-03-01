@@ -13,6 +13,7 @@ import * as settingsService from "@/services/settingsService";
 import type { AppSettings, SettingsUpdate, Theme, AppInfo } from "@/types";
 import { SourceManager } from "./SourceManager";
 import { LLMConfig } from "./LLMConfig";
+import { useThemeContext } from "@/hooks/ThemeContext";
 
 type TabId = "general" | "llm" | "sources" | "about";
 
@@ -31,6 +32,7 @@ export function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { setTheme: applyTheme } = useThemeContext();
 
   // Form state
   const [theme, setTheme] = useState<Theme>("system");
@@ -75,7 +77,7 @@ export function SettingsView() {
       setSettings(updated);
       setSuccess(true);
 
-      // Apply theme
+      // Apply theme via context (propagates to AppShell)
       applyTheme(updated.theme);
 
       setTimeout(() => setSuccess(false), 3000);
@@ -326,25 +328,4 @@ function AboutSection({ appInfo }: { appInfo: AppInfo }) {
       </p>
     </div>
   );
-}
-
-// ─── Theme Helper ─────────────────────────────────────────
-
-function applyTheme(theme: Theme) {
-  const root = document.documentElement;
-  if (theme === "dark") {
-    root.classList.add("dark");
-  } else if (theme === "light") {
-    root.classList.remove("dark");
-  } else {
-    // System preference
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    if (prefersDark) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }
 }
