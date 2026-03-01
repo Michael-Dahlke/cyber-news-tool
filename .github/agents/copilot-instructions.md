@@ -3,6 +3,7 @@
 Auto-generated from all feature plans. Last updated: 2026-02-28
 
 ## Active Technologies
+- SQLite local database for articles, sources, and settings; OS keychain for API key (001-news-reader-dashboard)
 
 - TypeScript 5.x (frontend), Rust (backend/core via Tauri v2) + Tauri v2, React 19, shadcn/ui (Radix UI + Tailwind CSS), SQLite via `rusqlite` (bundled + FTS5), `feed-rs` (Rust RSS/Atom parser), `readability` + `scraper` (content extraction), `reqwest` + `tokio` (async HTTP), `keyring` (OS keychain) (001-news-reader-dashboard)
 
@@ -22,6 +23,7 @@ cargo test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECH
 TypeScript 5.x (frontend), Rust (backend/core via Tauri v2): Follow standard conventions
 
 ## Recent Changes
+- 001-news-reader-dashboard: Added TypeScript 5.x (frontend), Rust (backend/core via Tauri v2) + Tauri v2, React 19, shadcn/ui (Radix UI + Tailwind CSS), SQLite via `rusqlite` (bundled + FTS5), `feed-rs` (Rust RSS/Atom parser), `readability` + `scraper` (content extraction), `reqwest` + `tokio` (async HTTP), `keyring` (OS keychain)
 
 - 001-news-reader-dashboard: Added TypeScript 5.x (frontend), Rust (backend/core via Tauri v2) + Tauri v2, React 19, shadcn/ui (Radix UI + Tailwind CSS), SQLite via `rusqlite` (bundled + FTS5), `feed-rs` (Rust RSS/Atom parser), `readability` + `scraper` (content extraction), `reqwest` + `tokio` (async HTTP), `keyring` (OS keychain)
 

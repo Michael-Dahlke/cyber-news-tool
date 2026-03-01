@@ -35,6 +35,7 @@ type ArticleSummary = {
   id: number;
   title: string;
   url: string;
+  source_id: number;
   source_name: string;
   publish_date: string;  // ISO 8601
   category: "general" | "microsoft" | "threat_intel";
@@ -48,6 +49,40 @@ type ArticleSummary = {
 - `"general"` with `days_back: 0` → "Today's News" section (FR-002)
 - `"microsoft"` with `days_back: 7` → "Microsoft News" section (FR-003)
 - `"threat_intel"` with `days_back: 7` → "Threat Intelligence" section (FR-004)
+
+---
+
+## `articles::list_by_source`
+
+Returns articles from a single feed source for the filtered source feed view (FR-040–FR-042).
+
+**Direction**: Frontend → Backend
+**Parameters**:
+
+```typescript
+type ListBySourceParams = {
+  source_id: number;
+  limit?: number;   // Default: 50
+  offset?: number;  // Default: 0
+};
+```
+
+**Response**:
+
+```typescript
+type ListBySourceResponse = {
+  articles: ArticleSummary[];
+  total_count: number;
+  source_name: string;   // Convenience: name of the resolved source
+};
+```
+
+**Errors**: None expected (returns empty array when source has no articles)
+
+**Behavior**:
+- Returns articles sorted newest-first (`publish_date DESC`)
+- Includes articles from all time (no `days_back` filter)
+- `source_id` must reference an active source in `news_sources`; if not found, returns empty array
 
 ---
 
@@ -140,8 +175,10 @@ Returns cache statistics for the Settings screen.
 type CacheStatusResponse = {
   cached_articles: number;
   total_articles: number;
-  oldest_cached: string | null;  // ISO 8601
-  cache_size_bytes: number;      // Approximate DB size used by cached content
+  oldest_cached: string | null;       // ISO 8601
+  body_cache_size_bytes: number;      // SUM of body_size_bytes for all cached articles
+  cache_size_limit_gb: number;        // Current configured limit (from app_settings)
+  size_cap_pct: number;               // body_cache_size_bytes / (cache_size_limit_gb * 1_073_741_824) * 100, rounded to 1 decimal
 };
 ```
 

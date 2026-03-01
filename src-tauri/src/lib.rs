@@ -7,6 +7,68 @@ use db::Database;
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
+/// Read the `last_refresh_at` timestamp from app_settings, returning None if absent.
+fn read_last_refresh_at(db: &Database) -> Option<chrono::DateTime<chrono::Utc>> {
+    let conn = db.conn.lock().ok()?;
+    let ts: String = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = 'last_refresh_at'",
+            [],
+            |row| row.get(0),
+        )
+        .ok()?;
+    chrono::DateTime::parse_from_rfc3339(&ts)
+        .ok()
+        .map(|dt| dt.with_timezone(&chrono::Utc))
+}
+
+/// Write (upsert) `last_refresh_at` with the current UTC timestamp.
+fn write_last_refresh_at(db: &Database) {
+    if let Ok(conn) = db.conn.lock() {
+        let now = chrono::Utc::now().to_rfc3339();
+        let _ = conn.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES ('last_refresh_at', ?1, ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            [&now],
+        );
+    }
+}
+
+/// Returns true when `now - last_refresh_at > threshold_hours`, or when no previous refresh exists.
+fn should_refresh(db: &Database, threshold_hours: u64) -> bool {
+    match read_last_refresh_at(db) {
+        None => true, // never refreshed
+        Some(last) => {
+            let elapsed = chrono::Utc::now().signed_duration_since(last);
+            elapsed.num_seconds() > (threshold_hours as i64) * 3600
+        }
+    }
+}
+
+/// Perform a refresh, emit event, and record the timestamp.
+async fn do_refresh(db: Arc<Database>, app_handle: tauri::AppHandle) {
+    log::info!("Feed refresh: starting");
+    let result = services::feed_service::refresh_all_feeds(db.clone(), None).await;
+
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    let _ = app_handle.emit(
+        "feeds://auto-refresh-complete",
+        serde_json::json!({
+            "articles_added": result.articles_added,
+            "timestamp": timestamp,
+        }),
+    );
+
+    write_last_refresh_at(&db);
+
+    log::info!(
+        "Feed refresh complete: {} sources fetched, {} articles added, {} errors",
+        result.sources_fetched,
+        result.articles_added,
+        result.errors.len()
+    );
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
@@ -35,17 +97,17 @@ pub fn run() {
                 }
             }
 
-            // Read auto-refresh interval from settings
-            let refresh_interval_min: u64 = {
+            // Read background refresh threshold from settings (FR-006)
+            let refresh_threshold_hours: u64 = {
                 let conn = database.conn.lock().expect("Failed to lock DB for settings");
                 conn.query_row(
-                    "SELECT value FROM app_settings WHERE key = 'feed_refresh_interval_min'",
+                    "SELECT value FROM app_settings WHERE key = 'background_refresh_threshold_hours'",
                     [],
                     |row| row.get::<_, String>(0),
                 )
                 .ok()
                 .and_then(|v| v.parse().ok())
-                .unwrap_or(60)
+                .unwrap_or(4)
             };
 
             // Wrap in Arc for sharing with background task
@@ -54,29 +116,35 @@ pub fn run() {
             // Manage the Arc<Database> — commands use State<'_, Arc<Database>>
             app.manage(db.clone());
 
-            // Spawn auto-refresh background task
-            let app_handle = app.handle().clone();
-            let db_for_refresh = db.clone();
-            tauri::async_runtime::spawn(async move {
-                let interval = std::time::Duration::from_secs(refresh_interval_min * 60);
-                loop {
-                    tokio::time::sleep(interval).await;
-                    log::info!("Auto-refresh: starting feed refresh");
+            // ── FR-006: Cold-launch refresh ──────────────────────────
+            // On every app start, refresh feeds if threshold exceeded (or if
+            // no previous refresh exists). This replaces the old periodic timer.
+            if should_refresh(&db, refresh_threshold_hours) {
+                let db_launch = db.clone();
+                let handle_launch = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    do_refresh(db_launch, handle_launch).await;
+                });
+            }
 
-                    let result = services::feed_service::refresh_all_feeds(db_for_refresh.clone(), None).await;
+            // ── FR-006: Window-focus refresh ─────────────────────────
+            // When the window regains focus after being in the background for
+            // longer than the threshold, trigger a single refresh.
+            let db_focus = db.clone();
+            let handle_focus = app.handle().clone();
+            let main_window = app
+                .get_webview_window("main")
+                .expect("main window must exist");
 
-                    let timestamp = chrono::Utc::now().to_rfc3339();
-                    let _ = app_handle.emit("feeds://auto-refresh-complete", serde_json::json!({
-                        "articles_added": result.articles_added,
-                        "timestamp": timestamp,
-                    }));
-
-                    log::info!(
-                        "Auto-refresh complete: {} sources fetched, {} articles added, {} errors",
-                        result.sources_fetched,
-                        result.articles_added,
-                        result.errors.len()
-                    );
+            main_window.on_window_event(move |event| {
+                if let tauri::WindowEvent::Focused(true) = event {
+                    if should_refresh(&db_focus, refresh_threshold_hours) {
+                        let db_inner = db_focus.clone();
+                        let handle_inner = handle_focus.clone();
+                        tauri::async_runtime::spawn(async move {
+                            do_refresh(db_inner, handle_inner).await;
+                        });
+                    }
                 }
             });
 
@@ -94,6 +162,7 @@ pub fn run() {
             commands::feeds::feeds_remove_source,
             commands::feeds::feeds_refresh,
             commands::articles::articles_list_by_category,
+            commands::articles::articles_list_by_source,
             commands::articles::articles_get_content,
             commands::articles::articles_extract_via_webview,
             commands::articles::articles_get_cache_status,

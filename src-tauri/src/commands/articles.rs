@@ -1,5 +1,5 @@
 use crate::db::Database;
-use crate::services::content_extractor;
+use crate::services::{cache_service, content_extractor};
 use chrono;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -10,6 +10,7 @@ pub struct ArticleSummary {
     pub id: i64,
     pub title: String,
     pub url: String,
+    pub source_id: i64,
     pub source_name: String,
     pub publish_date: String,
     pub category: String,
@@ -86,6 +87,7 @@ pub fn articles_list_by_category(
                 id: row.get(0)?,
                 title: row.get(1)?,
                 url: row.get(2)?,
+                source_id: 0, // not fetched in category queries
                 source_name: row.get(3)?,
                 publish_date: row.get(4)?,
                 category: row.get(5)?,
@@ -102,6 +104,102 @@ pub fn articles_list_by_category(
     })
 }
 
+// ─── Browse by Source (FR-033) ────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct ListBySourceParams {
+    pub source_id: i64,
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SourceInfo {
+    pub id: i64,
+    pub name: String,
+    pub url: String,
+    pub category: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ListBySourceResponse {
+    pub source: SourceInfo,
+    pub articles: Vec<ArticleSummary>,
+    pub total: i64,
+}
+
+/// List articles by source with pagination (FR-033).
+#[tauri::command]
+pub fn articles_list_by_source(
+    db: State<'_, Arc<Database>>,
+    params: ListBySourceParams,
+) -> Result<ListBySourceResponse, String> {
+    let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
+    let limit = params.limit.unwrap_or(50);
+    let offset = params.offset.unwrap_or(0);
+
+    // Fetch source info
+    let source = conn
+        .query_row(
+            "SELECT id, name, url, category FROM news_sources WHERE id = ?1",
+            [params.source_id],
+            |row| {
+                Ok(SourceInfo {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    url: row.get(2)?,
+                    category: row.get(3)?,
+                })
+            },
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => "SOURCE_NOT_FOUND".to_string(),
+            _ => format!("DB error: {e}"),
+        })?;
+
+    let total: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM articles WHERE source_id = ?1",
+            [params.source_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("DB error: {e}"))?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT a.id, a.title, a.url, a.source_id, ns.name, a.publish_date, a.category, a.is_cached
+             FROM articles a
+             JOIN news_sources ns ON a.source_id = ns.id
+             WHERE a.source_id = ?1
+             ORDER BY a.publish_date DESC
+             LIMIT ?2 OFFSET ?3",
+        )
+        .map_err(|e| format!("DB error: {e}"))?;
+
+    let articles = stmt
+        .query_map(rusqlite::params![params.source_id, limit, offset], |row| {
+            Ok(ArticleSummary {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                url: row.get(2)?,
+                source_id: row.get(3)?,
+                source_name: row.get(4)?,
+                publish_date: row.get(5)?,
+                category: row.get(6)?,
+                is_cached: row.get::<_, i32>(7).map(|v| v != 0)?,
+            })
+        })
+        .map_err(|e| format!("DB error: {e}"))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(ListBySourceResponse {
+        source,
+        articles,
+        total,
+    })
+}
+
 // ─── Article Detail Types ─────────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]
@@ -109,6 +207,7 @@ pub struct ArticleDetail {
     pub id: i64,
     pub title: String,
     pub url: String,
+    pub source_id: i64,
     pub source_name: String,
     pub publish_date: String,
     pub body_html: Option<String>,
@@ -139,7 +238,7 @@ pub async fn articles_get_content(
         let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
         let mut stmt = conn
             .prepare(
-                "SELECT a.id, a.title, a.url, ns.name as source_name, a.publish_date,
+                "SELECT a.id, a.title, a.url, a.source_id, ns.name as source_name, a.publish_date,
                         a.body_html, a.image_urls, a.extraction_method, a.is_cached, a.category
                  FROM articles a
                  JOIN news_sources ns ON a.source_id = ns.id
@@ -149,7 +248,7 @@ pub async fn articles_get_content(
 
         let result = stmt
             .query_row([params.article_id], |row| {
-                let image_urls_json: Option<String> = row.get(6)?;
+                let image_urls_json: Option<String> = row.get(7)?;
                 let image_urls: Vec<String> = image_urls_json
                     .and_then(|json| serde_json::from_str(&json).ok())
                     .unwrap_or_default();
@@ -158,13 +257,14 @@ pub async fn articles_get_content(
                     id: row.get(0)?,
                     title: row.get(1)?,
                     url: row.get(2)?,
-                    source_name: row.get(3)?,
-                    publish_date: row.get(4)?,
-                    body_html: row.get(5)?,
+                    source_id: row.get(3)?,
+                    source_name: row.get(4)?,
+                    publish_date: row.get(5)?,
+                    body_html: row.get(6)?,
                     image_urls,
-                    extraction_method: row.get(7)?,
-                    is_cached: row.get::<_, i32>(8).map(|v| v != 0)?,
-                    category: row.get(9)?,
+                    extraction_method: row.get(8)?,
+                    is_cached: row.get::<_, i32>(9).map(|v| v != 0)?,
+                    category: row.get(10)?,
                 })
             })
             .map_err(|e| match e {
@@ -192,10 +292,15 @@ pub async fn articles_get_content(
 
             // Store extraction results in DB
             {
+                let body_size = cache_service::compute_body_size(
+                    &Some(extraction.body_html.clone()),
+                    &Some(extraction.body_text.clone()),
+                );
                 let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
                 conn.execute(
                     "UPDATE articles SET body_html = ?1, body_text = ?2, image_urls = ?3,
                      extraction_method = ?4, is_cached = 1, cached_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+                     body_size_bytes = ?6,
                      updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
                      WHERE id = ?5",
                     rusqlite::params![
@@ -203,7 +308,8 @@ pub async fn articles_get_content(
                         extraction.body_text,
                         image_urls_json,
                         method_str,
-                        params.article_id
+                        params.article_id,
+                        body_size
                     ],
                 )
                 .map_err(|e| format!("DB update error: {e}"))?;
@@ -290,20 +396,26 @@ pub fn articles_extract_via_webview(
     let image_urls_json =
         serde_json::to_string(&image_urls).unwrap_or_else(|_| "[]".to_string());
 
+    let body_size = cache_service::compute_body_size(
+        &Some(sanitized_html.clone()),
+        &Some(body_text.clone()),
+    );
+
     conn.execute(
         "UPDATE articles SET body_html = ?1, body_text = ?2, image_urls = ?3,
          extraction_method = 'webview', is_cached = 1,
          cached_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+         body_size_bytes = ?5,
          updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
          WHERE id = ?4",
-        rusqlite::params![sanitized_html, body_text, image_urls_json, params.article_id],
+        rusqlite::params![sanitized_html, body_text, image_urls_json, params.article_id, body_size],
     )
     .map_err(|e| format!("DB update error: {e}"))?;
 
     // Re-read the article to return complete data
     let mut stmt = conn
         .prepare(
-            "SELECT a.id, a.title, a.url, ns.name as source_name, a.publish_date,
+            "SELECT a.id, a.title, a.url, a.source_id, ns.name as source_name, a.publish_date,
                     a.body_html, a.image_urls, a.extraction_method, a.is_cached, a.category
              FROM articles a
              JOIN news_sources ns ON a.source_id = ns.id
@@ -313,7 +425,7 @@ pub fn articles_extract_via_webview(
 
     let article = stmt
         .query_row([params.article_id], |row| {
-            let img_json: Option<String> = row.get(6)?;
+            let img_json: Option<String> = row.get(7)?;
             let imgs: Vec<String> = img_json
                 .and_then(|json| serde_json::from_str(&json).ok())
                 .unwrap_or_default();
@@ -322,13 +434,14 @@ pub fn articles_extract_via_webview(
                 id: row.get(0)?,
                 title: row.get(1)?,
                 url: row.get(2)?,
-                source_name: row.get(3)?,
-                publish_date: row.get(4)?,
-                body_html: row.get(5)?,
+                source_id: row.get(3)?,
+                source_name: row.get(4)?,
+                publish_date: row.get(5)?,
+                body_html: row.get(6)?,
                 image_urls: imgs,
-                extraction_method: row.get(7)?,
-                is_cached: row.get::<_, i32>(8).map(|v| v != 0)?,
-                category: row.get(9)?,
+                extraction_method: row.get(8)?,
+                is_cached: row.get::<_, i32>(9).map(|v| v != 0)?,
+                category: row.get(10)?,
             })
         })
         .map_err(|e| match e {
@@ -346,7 +459,9 @@ pub struct CacheStatusResponse {
     pub cached_articles: i64,
     pub total_articles: i64,
     pub oldest_cached: Option<String>,
-    pub cache_size_bytes: i64,
+    pub body_cache_size_bytes: i64,
+    pub cache_size_limit_gb: f64,
+    pub size_cap_pct: f64,
 }
 
 /// Get cache statistics for the Settings screen.
@@ -376,21 +491,39 @@ pub fn articles_get_cache_status(
         )
         .ok();
 
-    // Approximate cache size: sum of body_html lengths for cached articles
-    let cache_size_bytes: i64 = conn
+    // Use the pre-computed body_size_bytes column
+    let body_cache_size_bytes: i64 = conn
         .query_row(
-            "SELECT COALESCE(SUM(LENGTH(body_html) + LENGTH(COALESCE(body_text, ''))), 0)
-             FROM articles WHERE is_cached = 1",
+            "SELECT COALESCE(SUM(body_size_bytes), 0) FROM articles WHERE is_cached = 1",
             [],
             |row| row.get(0),
         )
         .map_err(|e| format!("DB error: {e}"))?;
 
+    let cache_size_limit_gb: f64 = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = 'article_cache_size_limit_gb'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20.0);
+
+    let limit_bytes = cache_size_limit_gb * 1_073_741_824.0;
+    let size_cap_pct = if limit_bytes > 0.0 {
+        ((body_cache_size_bytes as f64 / limit_bytes) * 1000.0).round() / 10.0
+    } else {
+        0.0
+    };
+
     Ok(CacheStatusResponse {
         cached_articles,
         total_articles,
         oldest_cached,
-        cache_size_bytes,
+        body_cache_size_bytes,
+        cache_size_limit_gb,
+        size_cap_pct,
     })
 }
 

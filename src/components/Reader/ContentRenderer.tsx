@@ -1,17 +1,32 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { ImageLightbox } from "./ImageLightbox";
 
 interface ContentRendererProps {
   bodyHtml: string;
   imageUrls: string[];
+  /** Reader font size in px (FR-043) */
+  fontSize?: number;
 }
 
 /**
  * Renders cleaned article HTML with inline images and typography styles.
  * Uses dangerouslySetInnerHTML for the extracted content, with a prose
  * container for consistent typography.
+ *
+ * Applies `--reader-font-size` CSS variable and opens ImageLightbox
+ * when an image is clicked (FR-044).
  */
-export function ContentRenderer({ bodyHtml, imageUrls }: ContentRendererProps) {
+export function ContentRenderer({ bodyHtml, imageUrls, fontSize = 16 }: ContentRendererProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+  const handleImageClick = useCallback((e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "IMG") {
+      const src = (target as HTMLImageElement).src;
+      if (src) setLightboxSrc(src);
+    }
+  }, []);
 
   useEffect(() => {
     if (!contentRef.current) return;
@@ -23,8 +38,8 @@ export function ContentRenderer({ bodyHtml, imageUrls }: ContentRendererProps) {
       if (!img.alt) {
         img.alt = "Article image";
       }
-      // Add responsive styling
-      img.classList.add("max-w-full", "h-auto", "rounded-lg", "my-4");
+      // Add responsive styling + clickable cursor
+      img.classList.add("max-w-full", "h-auto", "rounded-lg", "my-4", "cursor-pointer");
     });
 
     // Make links open externally
@@ -34,10 +49,15 @@ export function ContentRenderer({ bodyHtml, imageUrls }: ContentRendererProps) {
       link.setAttribute("rel", "noopener noreferrer");
       link.classList.add("text-primary", "underline", "hover:text-primary/80");
     });
-  }, [bodyHtml]);
+
+    // Attach click handler for lightbox
+    const el = contentRef.current;
+    el.addEventListener("click", handleImageClick);
+    return () => el.removeEventListener("click", handleImageClick);
+  }, [bodyHtml, handleImageClick]);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-3xl" style={{ ["--reader-font-size" as string]: `${fontSize}px` }}>
       {/* Image gallery if article has notable images */}
       {imageUrls.length > 0 && (
         <div className="mb-6">
@@ -47,7 +67,8 @@ export function ContentRenderer({ bodyHtml, imageUrls }: ContentRendererProps) {
               src={url}
               alt="Article header"
               loading="lazy"
-              className="w-full rounded-lg object-cover max-h-80"
+              className="w-full rounded-lg object-cover max-h-80 cursor-pointer"
+              onClick={() => setLightboxSrc(url)}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
@@ -69,8 +90,17 @@ export function ContentRenderer({ bodyHtml, imageUrls }: ContentRendererProps) {
           prose-pre:bg-muted prose-pre:text-foreground
           prose-strong:text-foreground prose-strong:font-semibold
           prose-li:text-foreground/90"
+        style={{ fontSize: `${fontSize}px` }}
         dangerouslySetInnerHTML={{ __html: bodyHtml }}
       />
+
+      {/* Lightbox overlay */}
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </div>
   );
 }

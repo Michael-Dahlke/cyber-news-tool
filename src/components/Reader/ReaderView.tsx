@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { getContent } from "@/services/articleService";
 import type { ArticleDetail } from "@/services/articleService";
+import * as settingsService from "@/services/settingsService";
 import { ContentRenderer } from "./ContentRenderer";
+import { FontSizeControl } from "./FontSizeControl";
 import { WebViewFallback } from "./WebViewFallback";
 import { KQLPanel } from "@/components/KQL/KQLPanel";
 import {
@@ -44,6 +46,7 @@ export function ReaderView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [kqlPanelOpen, setKqlPanelOpen] = useState(false);
+  const [fontSize, setFontSize] = useState(16);
 
   const fetchContent = useCallback(async () => {
     if (!articleId) return;
@@ -68,6 +71,10 @@ export function ReaderView() {
 
   useEffect(() => {
     fetchContent();
+    // Load persisted reader font size (FR-043)
+    settingsService.getSettings().then((s) => {
+      if (s.reader_font_size) setFontSize(s.reader_font_size);
+    }).catch(() => {/* use default */});
   }, [fetchContent]);
 
   const handleBack = useCallback(() => {
@@ -139,6 +146,8 @@ export function ReaderView() {
         </button>
 
         <div className="flex items-center gap-2">
+          <FontSizeControl initialSize={fontSize} onChange={setFontSize} />
+          <div className="mx-1 h-5 w-px bg-border" />
           <button
             onClick={() => setKqlPanelOpen(!kqlPanelOpen)}
             className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -177,9 +186,12 @@ export function ReaderView() {
                 {catConfig.label}
               </span>
               <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground">
+              <Link
+                to={`/sources/${article.source_id}`}
+                className="text-xs text-muted-foreground hover:text-primary hover:underline"
+              >
                 {article.source_name}
-              </span>
+              </Link>
             </div>
 
             <h1 className="text-2xl font-bold leading-tight text-foreground mb-3">
@@ -209,6 +221,7 @@ export function ReaderView() {
             <ContentRenderer
               bodyHtml={article.body_html!}
               imageUrls={article.image_urls}
+              fontSize={fontSize}
             />
           ) : extractionFailed ? (
             /* FR-015: Extraction failed fallback */
