@@ -98,6 +98,8 @@ pub fn run() {
             commands::articles::articles_extract_via_webview,
             commands::articles::articles_get_cache_status,
             commands::articles::articles_evict_cache,
+            commands::search::search_query,
+            commands::search::search_suggest,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

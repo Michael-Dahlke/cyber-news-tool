@@ -118,11 +118,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Implement search service with FTS5 MATCH queries, BM25 ranking (title weighted 10x), date-range filtering, and snippet extraction in src-tauri/src/services/search_service.rs
-- [ ] T044 [US3] Implement search Tauri commands (query, suggest) per contracts/search.md in src-tauri/src/commands/search.rs
-- [ ] T045 [P] [US3] Create SearchBar component with keyword input and submit using cmdk in src/components/Search/SearchBar.tsx
-- [ ] T046 [P] [US3] Create DateRangeFilter component with date pickers using react-day-picker in src/components/Search/DateRangeFilter.tsx
-- [ ] T047 [US3] Create SearchResults component with result cards showing title, source, date, highlighted excerpt, and click-to-open-reader in src/components/Search/SearchResults.tsx
+- [X] T043 [US3] Implement search service with FTS5 MATCH queries, BM25 ranking (title weighted 10x), date-range filtering, and snippet extraction in src-tauri/src/services/search_service.rs
+- [X] T044 [US3] Implement search Tauri commands (query, suggest) per contracts/search.md in src-tauri/src/commands/search.rs
+- [X] T045 [P] [US3] Create SearchBar component with keyword input and submit using cmdk in src/components/Search/SearchBar.tsx
+- [X] T046 [P] [US3] Create DateRangeFilter component with date pickers using react-day-picker in src/components/Search/DateRangeFilter.tsx
+- [X] T047 [US3] Create SearchResults component with result cards showing title, source, date, highlighted excerpt, and click-to-open-reader in src/components/Search/SearchResults.tsx
 
 **Checkpoint**: Search returns relevant results with highlighted excerpts. Date filter works. Clicking a result opens the reader view.
 
