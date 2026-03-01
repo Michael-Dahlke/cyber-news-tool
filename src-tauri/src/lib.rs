@@ -100,6 +100,10 @@ pub fn run() {
             commands::articles::articles_evict_cache,
             commands::search::search_query,
             commands::search::search_suggest,
+            commands::kql::kql_generate,
+            commands::kql::kql_get_for_article,
+            commands::kql::kql_copy_to_clipboard,
+            commands::kql::kql_check_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

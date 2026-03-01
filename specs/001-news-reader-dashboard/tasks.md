@@ -136,13 +136,13 @@
 
 ### Implementation for User Story 4
 
-- [ ] T048 [US4] Create KqlSuggestion model in src-tauri/src/models/kql_suggestion.rs and add to models/mod.rs
-- [ ] T049 [US4] Implement KQL service with Chat Completions prompt construction (system: KQL expert + Sentinel tables, user: article text), response parsing, suggestion validation, and local storage in src-tauri/src/services/kql_service.rs
-- [ ] T050 [US4] Implement kql Tauri commands (generate with user_confirmed validation, get_for_article, copy_to_clipboard, check_config) per contracts/kql.md in src-tauri/src/commands/kql.rs
-- [ ] T051 [P] [US4] Create KQLQueryCard component with query text (syntax-highlighted via shiki with Kusto grammar), description, target table label, and copy-to-clipboard button in src/components/KQL/KQLQueryCard.tsx
-- [ ] T052 [US4] Create KQLPanel component with confirmation dialog (shows endpoint URL + article title per Constitution II), generation trigger, loading state, error/retry, and "no suggestions" message in src/components/KQL/KQLPanel.tsx
-- [ ] T053 [US4] Create LLMConfig component for endpoint URL, model name input, API key set/clear, and connection test in src/components/Settings/LLMConfig.tsx
-- [ ] T054 [US4] Integrate KQL panel into ReaderView as a toggleable side panel triggered by "Generate KQL Queries" button in src/components/Reader/ReaderView.tsx
+- [X] T048 [US4] Create KqlSuggestion model in src-tauri/src/models/kql_suggestion.rs and add to models/mod.rs
+- [X] T049 [US4] Implement KQL service with Chat Completions prompt construction (system: KQL expert + Sentinel tables, user: article text), response parsing, suggestion validation, and local storage in src-tauri/src/services/kql_service.rs
+- [X] T050 [US4] Implement kql Tauri commands (generate with user_confirmed validation, get_for_article, copy_to_clipboard, check_config) per contracts/kql.md in src-tauri/src/commands/kql.rs
+- [X] T051 [P] [US4] Create KQLQueryCard component with query text (syntax-highlighted via shiki with Kusto grammar), description, target table label, and copy-to-clipboard button in src/components/KQL/KQLQueryCard.tsx
+- [X] T052 [US4] Create KQLPanel component with confirmation dialog (shows endpoint URL + article title per Constitution II), generation trigger, loading state, error/retry, and "no suggestions" message in src/components/KQL/KQLPanel.tsx
+- [X] T053 [US4] Create LLMConfig component for endpoint URL, model name input, API key set/clear, and connection test in src/components/Settings/LLMConfig.tsx
+- [X] T054 [US4] Integrate KQL panel into ReaderView as a toggleable side panel triggered by "Generate KQL Queries" button in src/components/Reader/ReaderView.tsx
 
 **Checkpoint**: KQL generation works end-to-end with confirmation dialog. Queries display with syntax highlighting. Copy to clipboard works. Settings allow LLM configuration.
 

@@ -12,18 +12,20 @@ import { cn } from "@/lib/utils";
 import * as settingsService from "@/services/settingsService";
 import type { AppSettings, SettingsUpdate, Theme, AppInfo } from "@/types";
 import { SourceManager } from "./SourceManager";
+import { LLMConfig } from "./LLMConfig";
 
-type TabId = "general" | "sources" | "about";
+type TabId = "general" | "llm" | "sources" | "about";
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "general", label: "General" },
+  { id: "llm", label: "LLM" },
   { id: "sources", label: "Sources" },
   { id: "about", label: "About" },
 ];
 
 export function SettingsView() {
   const [activeTab, setActiveTab] = useState<TabId>("general");
-  const [, setSettings] = useState<AppSettings | null>(null);
+  const [currentSettings, setSettings] = useState<AppSettings | null>(null);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,6 +142,17 @@ export function SettingsView() {
           saving={saving}
           onSave={handleSave}
         />
+      )}
+
+      {activeTab === "llm" && currentSettings && (
+        <div className="max-w-lg">
+          <LLMConfig
+            settings={currentSettings}
+            onSettingsUpdated={(updated) => {
+              setSettings(updated);
+            }}
+          />
+        </div>
       )}
 
       {activeTab === "sources" && <SourceManager />}

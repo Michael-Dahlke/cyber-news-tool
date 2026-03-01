@@ -4,6 +4,7 @@ import { getContent } from "@/services/articleService";
 import type { ArticleDetail } from "@/services/articleService";
 import { ContentRenderer } from "./ContentRenderer";
 import { WebViewFallback } from "./WebViewFallback";
+import { KQLPanel } from "@/components/KQL/KQLPanel";
 import {
   ArrowLeft,
   ExternalLink,
@@ -13,6 +14,7 @@ import {
   Shield,
   Building2,
   Newspaper,
+  ShieldAlert,
 } from "lucide-react";
 
 const categoryConfig: Record<string, { label: string; icon: typeof Shield; color: string }> = {
@@ -41,6 +43,7 @@ export function ReaderView() {
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [kqlPanelOpen, setKqlPanelOpen] = useState(false);
 
   const fetchContent = useCallback(async () => {
     if (!articleId) return;
@@ -137,6 +140,18 @@ export function ReaderView() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setKqlPanelOpen(!kqlPanelOpen)}
+            className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              kqlPanelOpen
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+            title="Generate KQL Queries"
+          >
+            <ShieldAlert className="h-4 w-4" />
+            KQL Queries
+          </button>
+          <button
             onClick={handleOpenInBrowser}
             className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
             title="Open in browser"
@@ -147,9 +162,11 @@ export function ReaderView() {
         </div>
       </div>
 
-      {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-8">
+      {/* Main content area with optional KQL side panel */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Scrollable article content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-6 py-8">
           {/* Article header */}
           <header className="mb-8">
             <div className="mb-3 flex items-center gap-2">
@@ -221,6 +238,18 @@ export function ReaderView() {
             />
           )}
         </div>
+      </div>
+
+        {/* KQL side panel */}
+        {kqlPanelOpen && article && (
+          <div className="w-[420px] flex-shrink-0 overflow-hidden">
+            <KQLPanel
+              articleId={article.id}
+              articleTitle={article.title}
+              onClose={() => setKqlPanelOpen(false)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
