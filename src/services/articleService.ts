@@ -41,9 +41,21 @@ export async function listByCategory(params: {
   days_back: number;
   limit?: number;
   offset?: number;
+  /** Exclude today's articles (so they appear only in the Today section) */
+  exclude_today?: boolean;
 }): Promise<ListByCategoryResponse> {
   return invoke<ListByCategoryResponse>("articles_list_by_category", {
     params,
+  });
+}
+
+/** List ALL articles from today regardless of category. */
+export async function listToday(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<ListByCategoryResponse> {
+  return invoke<ListByCategoryResponse>("articles_list_today", {
+    params: params ?? {},
   });
 }
 

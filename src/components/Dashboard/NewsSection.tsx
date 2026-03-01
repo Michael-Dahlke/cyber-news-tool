@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ArticleCard } from "./ArticleCard";
-import { listByCategory } from "@/services/articleService";
+import { listByCategory, listToday } from "@/services/articleService";
 import type { ArticleSummary } from "@/services/articleService";
 import type { ArticleCategory } from "@/types";
 import { RefreshCw, Loader2, Inbox } from "lucide-react";
@@ -8,8 +8,13 @@ import { cn } from "@/lib/utils";
 
 interface NewsSectionProps {
   title: string;
-  category: ArticleCategory;
-  daysBack: number;
+  /** Required unless todayOnly is true */
+  category?: ArticleCategory;
+  daysBack?: number;
+  /** When true, fetches ALL articles from today regardless of category */
+  todayOnly?: boolean;
+  /** When true, excludes today's articles from the category query */
+  excludeToday?: boolean;
   lastUpdated?: string | null;
   onArticleClick?: (article: ArticleSummary) => void;
 }
@@ -17,7 +22,9 @@ interface NewsSectionProps {
 export function NewsSection({
   title,
   category,
-  daysBack,
+  daysBack = 7,
+  todayOnly = false,
+  excludeToday = false,
   lastUpdated,
   onArticleClick,
 }: NewsSectionProps) {
@@ -30,19 +37,26 @@ export function NewsSection({
     setIsLoading(true);
     setError(null);
     try {
-      const response = await listByCategory({
-        category,
-        days_back: daysBack,
-        limit: 50,
-      });
-      setArticles(response.articles);
-      setTotalCount(response.total_count);
+      if (todayOnly) {
+        const response = await listToday({ limit: 100 });
+        setArticles(response.articles);
+        setTotalCount(response.total_count);
+      } else if (category) {
+        const response = await listByCategory({
+          category,
+          days_back: daysBack,
+          limit: 50,
+          exclude_today: excludeToday,
+        });
+        setArticles(response.articles);
+        setTotalCount(response.total_count);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
     }
-  }, [category, daysBack]);
+  }, [category, daysBack, todayOnly, excludeToday]);
 
   useEffect(() => {
     fetchArticles();

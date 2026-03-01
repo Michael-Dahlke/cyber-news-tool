@@ -54,6 +54,12 @@ const DEFAULT_SOURCES: &[DefaultSource] = &[
         default_tag: "microsoft",
     },
     DefaultSource {
+        name: "Microsoft Threat Intelligence",
+        feed_url: "https://www.microsoft.com/en-us/security/blog/topic/threat-intelligence/feed/",
+        feed_type: "rss",
+        default_tag: "threat_intel",
+    },
+    DefaultSource {
         name: "Microsoft Security Response Center",
         feed_url: "https://msrc.microsoft.com/blog/feed/",
         feed_type: "rss",
@@ -74,28 +80,25 @@ const DEFAULT_SOURCES: &[DefaultSource] = &[
     },
 ];
 
-/// Seed default sources if the news_sources table is empty.
+/// Seed default sources, inserting any that are missing (idempotent).
+/// Uses INSERT OR IGNORE so existing sources are never overwritten, but new
+/// default sources added in future versions will be inserted automatically.
 pub fn seed_default_sources(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM news_sources WHERE is_default = 1",
-        [],
-        |row| row.get(0),
-    )?;
-
-    if count > 0 {
-        log::info!("Default sources already seeded ({count} found), skipping.");
-        return Ok(());
-    }
-
     let insert_sql = "INSERT OR IGNORE INTO news_sources (name, feed_url, feed_type, default_tag, is_default, is_active) VALUES (?1, ?2, ?3, ?4, 1, 1)";
 
+    let mut added = 0usize;
     for source in DEFAULT_SOURCES {
-        conn.execute(
+        let rows = conn.execute(
             insert_sql,
             rusqlite::params![source.name, source.feed_url, source.feed_type, source.default_tag],
         )?;
+        added += rows;
     }
 
-    log::info!("Seeded {} default news sources.", DEFAULT_SOURCES.len());
+    if added > 0 {
+        log::info!("Seeded {added} new default news sources.");
+    } else {
+        log::debug!("Default sources already up to date.");
+    }
     Ok(())
 }

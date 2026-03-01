@@ -162,6 +162,7 @@ pub fn run() {
             commands::feeds::feeds_remove_source,
             commands::feeds::feeds_refresh,
             commands::articles::articles_list_by_category,
+            commands::articles::articles_list_today,
             commands::articles::articles_list_by_source,
             commands::articles::articles_get_content,
             commands::articles::articles_extract_via_webview,

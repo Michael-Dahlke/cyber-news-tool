@@ -25,49 +25,121 @@ pub struct FeedError {
 
 /// Microsoft-related keywords for category override (title + body matching).
 const MICROSOFT_KEYWORDS: &[&str] = &[
-    "microsoft", "azure", "windows", "defender", "sentinel", "entra",
-    "office 365", "m365", "exchange", "sharepoint", "teams", "copilot",
-    "active directory", "msrc", "patch tuesday",
+    "microsoft", "azure", "windows defender", "microsoft defender",
+    "sentinel", "entra id", "entra ", "office 365", "m365",
+    "exchange server", "sharepoint", "microsoft teams", "ms copilot",
+    "active directory", "msrc", "patch tuesday", "azure ad",
+    "microsoft security", "windows server", "intune",
 ];
 
-/// Threat intelligence keywords for category override.
-const THREAT_INTEL_KEYWORDS: &[&str] = &[
-    "cve-", "vulnerability", "exploit", "zero-day", "0-day", "zero day",
-    "ransomware", "malware", "apt", "threat actor", "campaign",
-    "ioc", "indicator of compromise", "ttps", "mitre att&ck",
-    "advisory", "cisa", "cert", "botnet", "backdoor", "phishing",
-    "supply chain attack", "data breach",
+/// Strong, unambiguous cybersecurity-specific threat intel keywords.
+/// An article must contain at least one of these to be classified as threat_intel.
+/// These terms are essentially never used outside of a security context.
+const THREAT_INTEL_STRONG: &[&str] = &[
+    "cve-20",          // CVE identifier (e.g. CVE-2024-...)
+    "ransomware",
+    "malware",
+    "exploit",
+    "zero-day",
+    "0-day",
+    "threat actor",
+    "apt ",            // APT group (with trailing space to avoid "apt" in other words)
+    "apt1", "apt28", "apt29", "apt41", // named APT groups
+    "indicator of compromise",
+    "ioc ",
+    "ttps",
+    "mitre att&ck",
+    "command and control",
+    "c2 server",
+    "botnet",
+    "backdoor",
+    "rootkit",
+    "spyware",
+    "keylogger",
+    "trojan",
+    "worm ",           // malicious worm (trailing space)
+    "nation-state",
+    "cyber espionage",
+    "cyberattack",
+    "cyber attack",
+    "threat campaign",
+    "supply chain attack",
+    "phishing campaign",
+    "spear phishing",
 ];
+
+/// Supplementary threat intel context keywords — these alone are NOT enough,
+/// but if paired with a strong keyword via source context they reinforce classification.
+const THREAT_INTEL_GENERAL: &[&str] = &[
+    "vulnerability",
+    "patch tuesday",
+    "security advisory",
+    "cisa ",
+    "us-cert",
+    "security bulletin",
+    "security update",
+    "remote code execution",
+    "privilege escalation",
+    "denial of service",
+    "sql injection",
+    "cross-site scripting",
+    "authentication bypass",
+];
+
+/// Minimum number of THREAT_INTEL_GENERAL matches required when no strong indicator present.
+const GENERAL_KEYWORD_THRESHOLD: usize = 2;
 
 /// Classify an article based on source default tag and keyword matching.
+///
+/// Rules (in order):
+/// 1. Non-general sources keep their tag unchanged.
+/// 2. Title matches a strong Microsoft keyword → microsoft.
+/// 3. Text contains at least 1 strong threat-intel indicator → threat_intel.
+/// 4. Text contains ≥ GENERAL_KEYWORD_THRESHOLD general security keywords → threat_intel.
+/// 5. Otherwise → general.
 pub fn classify_article(
     source_tag: &ArticleCategory,
     title: &str,
     body_text: Option<&str>,
 ) -> ArticleCategory {
-    // If source is specifically tagged (non-general), respect it
+    // If source is specifically tagged (non-general), respect it.
     if *source_tag != ArticleCategory::General {
         return source_tag.clone();
     }
 
-    let text_lower = format!(
-        "{} {}",
-        title.to_lowercase(),
-        body_text.unwrap_or("").to_lowercase()
-    );
+    // Only search the title for classification — body text from RSS summaries
+    // is often short and may contain incidental matches. Using just the title
+    // keeps classification focused on the article's actual subject.
+    let title_lower = title.to_lowercase();
+    // Use a short snippet of body text (first 500 chars) to limit false positives
+    let body_snippet = body_text
+        .unwrap_or("")
+        .chars()
+        .take(500)
+        .collect::<String>()
+        .to_lowercase();
+    let combined = format!("{title_lower} {body_snippet}");
 
     // Check Microsoft keywords first (more specific)
     for kw in MICROSOFT_KEYWORDS {
-        if text_lower.contains(kw) {
+        if combined.contains(kw) {
             return ArticleCategory::Microsoft;
         }
     }
 
-    // Check threat intelligence keywords
-    for kw in THREAT_INTEL_KEYWORDS {
-        if text_lower.contains(kw) {
-            return ArticleCategory::ThreatIntel;
-        }
+    // Check for at least one strong, unambiguous cybersecurity indicator.
+    let has_strong = THREAT_INTEL_STRONG.iter().any(|kw| combined.contains(kw));
+    if has_strong {
+        return ArticleCategory::ThreatIntel;
+    }
+
+    // Require multiple general security keywords to avoid false positives.
+    let general_matches = THREAT_INTEL_GENERAL
+        .iter()
+        .filter(|kw| combined.contains(*kw))
+        .count();
+    if general_matches >= GENERAL_KEYWORD_THRESHOLD {
+        return ArticleCategory::ThreatIntel;
     }
 
     ArticleCategory::General

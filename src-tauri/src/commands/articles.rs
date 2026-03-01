@@ -23,6 +23,9 @@ pub struct ListByCategoryParams {
     pub days_back: i64,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+    /// When true, excludes articles published today (used so category sections
+    /// don't duplicate articles already shown in the "Today" section).
+    pub exclude_today: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,14 +55,21 @@ pub fn articles_list_by_category(
     };
 
     let (date_filter, date_param_idx) = if params.days_back == 0 {
-        ("date(a.publish_date) = ?2".to_string(), true)
+        ("date(a.publish_date) = date('now')".to_string(), true)
     } else {
         ("a.publish_date >= ?2".to_string(), true)
     };
     let _ = date_param_idx; // used to track parameter numbering
 
+    // Optionally exclude today's articles so they don't duplicate the Today section
+    let today_exclusion = if params.exclude_today.unwrap_or(false) && params.days_back > 0 {
+        " AND date(a.publish_date) != date('now')"
+    } else {
+        ""
+    };
+
     let count_sql = format!(
-        "SELECT COUNT(*) FROM articles a WHERE a.category = ?1 AND {date_filter}"
+        "SELECT COUNT(*) FROM articles a WHERE a.category = ?1 AND {date_filter}{today_exclusion}"
     );
 
     let total_count: i64 = conn
@@ -72,7 +82,7 @@ pub fn articles_list_by_category(
         "SELECT a.id, a.title, a.url, ns.name as source_name, a.publish_date, a.category, a.is_cached
          FROM articles a
          JOIN news_sources ns ON a.source_id = ns.id
-         WHERE a.category = ?1 AND {date_filter}
+         WHERE a.category = ?1 AND {date_filter}{today_exclusion}
          ORDER BY a.publish_date DESC
          LIMIT ?3 OFFSET ?4"
     );
@@ -88,6 +98,64 @@ pub fn articles_list_by_category(
                 title: row.get(1)?,
                 url: row.get(2)?,
                 source_id: 0, // not fetched in category queries
+                source_name: row.get(3)?,
+                publish_date: row.get(4)?,
+                category: row.get(5)?,
+                is_cached: row.get::<_, i32>(6).map(|v| v != 0)?,
+            })
+        })
+        .map_err(|e| format!("DB error: {e}"))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(ListByCategoryResponse {
+        articles,
+        total_count,
+    })
+}
+
+// ─── Today's Articles (all categories) ─────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct ListTodayParams {
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
+
+/// List ALL articles published today, regardless of category (FR-002 revised).
+#[tauri::command]
+pub fn articles_list_today(
+    db: State<'_, Arc<Database>>,
+    params: ListTodayParams,
+) -> Result<ListByCategoryResponse, String> {
+    let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
+    let limit = params.limit.unwrap_or(100);
+    let offset = params.offset.unwrap_or(0);
+
+    let total_count: i64 = conn
+        .prepare("SELECT COUNT(*) FROM articles a WHERE date(a.publish_date) = date('now')")
+        .map_err(|e| format!("DB error: {e}"))?
+        .query_row([], |row| row.get(0))
+        .map_err(|e| format!("DB error: {e}"))?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT a.id, a.title, a.url, ns.name as source_name, a.publish_date, a.category, a.is_cached
+             FROM articles a
+             JOIN news_sources ns ON a.source_id = ns.id
+             WHERE date(a.publish_date) = date('now')
+             ORDER BY a.publish_date DESC
+             LIMIT ?1 OFFSET ?2",
+        )
+        .map_err(|e| format!("DB error: {e}"))?;
+
+    let articles = stmt
+        .query_map(rusqlite::params![limit, offset], |row| {
+            Ok(ArticleSummary {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                url: row.get(2)?,
+                source_id: 0,
                 source_name: row.get(3)?,
                 publish_date: row.get(4)?,
                 category: row.get(5)?,
@@ -141,7 +209,7 @@ pub fn articles_list_by_source(
     // Fetch source info
     let source = conn
         .query_row(
-            "SELECT id, name, url, category FROM news_sources WHERE id = ?1",
+            "SELECT id, name, feed_url, default_tag FROM news_sources WHERE id = ?1",
             [params.source_id],
             |row| {
                 Ok(SourceInfo {

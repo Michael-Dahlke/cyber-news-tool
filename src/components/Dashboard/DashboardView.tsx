@@ -8,6 +8,12 @@ import * as feedService from "@/services/feedService";
 import { cn } from "@/lib/utils";
 import type { ArticleSummary } from "@/services/articleService";
 
+/**
+ * Module-level flag so we only trigger one auto-refresh per app session,
+ * regardless of how many times DashboardView mounts (e.g. navigating away and back).
+ */
+let sessionRefreshDone = false;
+
 export function DashboardView() {
   const navigate = useNavigate();
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -59,9 +65,12 @@ export function DashboardView() {
     };
   }, []);
 
-  // Initial refresh on mount
+  // Initial refresh on mount — only once per app session, not on every navigation.
   useEffect(() => {
-    handleRefresh();
+    if (!sessionRefreshDone) {
+      sessionRefreshDone = true;
+      handleRefresh();
+    }
   }, []);
 
   const handleArticleClick = (article: ArticleSummary) => {
@@ -111,29 +120,40 @@ export function DashboardView() {
 
       {/* Three dashboard sections */}
       <div className="grid gap-8" key={refreshKey}>
-        {/* Today's News: category=general, days_back=0 (FR-002) */}
+        {/* Today's News: ALL categories published today (FR-002) */}
         <NewsSection
-          title="Today's News"
-          category="general"
-          daysBack={0}
+          title="Today"
+          todayOnly
           lastUpdated={lastUpdated}
           onArticleClick={handleArticleClick}
         />
 
-        {/* Microsoft News: category=microsoft, days_back=7 (FR-003) */}
+        {/* Microsoft News: last 7 days, excluding today (FR-003) */}
         <NewsSection
-          title="Microsoft News"
+          title="Microsoft"
           category="microsoft"
           daysBack={7}
+          excludeToday
           lastUpdated={lastUpdated}
           onArticleClick={handleArticleClick}
         />
 
-        {/* Threat Intelligence: category=threat_intel, days_back=7 (FR-004) */}
+        {/* Threat Intelligence: last 7 days, excluding today (FR-004) */}
         <NewsSection
           title="Threat Intelligence"
           category="threat_intel"
           daysBack={7}
+          excludeToday
+          lastUpdated={lastUpdated}
+          onArticleClick={handleArticleClick}
+        />
+
+        {/* General: last 7 days, excluding today (FR-005) */}
+        <NewsSection
+          title="General"
+          category="general"
+          daysBack={7}
+          excludeToday
           lastUpdated={lastUpdated}
           onArticleClick={handleArticleClick}
         />
