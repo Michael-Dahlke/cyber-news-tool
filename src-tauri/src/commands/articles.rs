@@ -1,5 +1,6 @@
 use crate::db::Database;
 use crate::services::content_extractor;
+use chrono;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
@@ -39,15 +40,22 @@ pub fn articles_list_by_category(
     let limit = params.limit.unwrap_or(50);
     let offset = params.offset.unwrap_or(0);
 
-    // Build date filter: days_back=0 means today only, days_back=7 means past week
-    let date_filter = if params.days_back == 0 {
-        "date(a.publish_date) = date('now')".to_string()
+    // Build date filter using parameter binding to prevent SQL injection.
+    // Compute the cutoff date in Rust and pass as a bound parameter.
+    let cutoff_date = if params.days_back == 0 {
+        chrono::Utc::now().format("%Y-%m-%d").to_string()
     } else {
-        format!(
-            "a.publish_date >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-{} days')",
-            params.days_back
-        )
+        (chrono::Utc::now() - chrono::Duration::days(params.days_back))
+            .format("%Y-%m-%dT%H:%M:%SZ")
+            .to_string()
     };
+
+    let (date_filter, date_param_idx) = if params.days_back == 0 {
+        ("date(a.publish_date) = ?2".to_string(), true)
+    } else {
+        ("a.publish_date >= ?2".to_string(), true)
+    };
+    let _ = date_param_idx; // used to track parameter numbering
 
     let count_sql = format!(
         "SELECT COUNT(*) FROM articles a WHERE a.category = ?1 AND {date_filter}"
@@ -56,7 +64,7 @@ pub fn articles_list_by_category(
     let total_count: i64 = conn
         .prepare(&count_sql)
         .map_err(|e| format!("DB error: {e}"))?
-        .query_row([&params.category], |row| row.get(0))
+        .query_row(rusqlite::params![&params.category, &cutoff_date], |row| row.get(0))
         .map_err(|e| format!("DB error: {e}"))?;
 
     let query_sql = format!(
@@ -65,7 +73,7 @@ pub fn articles_list_by_category(
          JOIN news_sources ns ON a.source_id = ns.id
          WHERE a.category = ?1 AND {date_filter}
          ORDER BY a.publish_date DESC
-         LIMIT ?2 OFFSET ?3"
+         LIMIT ?3 OFFSET ?4"
     );
 
     let mut stmt = conn
@@ -73,7 +81,7 @@ pub fn articles_list_by_category(
         .map_err(|e| format!("DB error: {e}"))?;
 
     let articles = stmt
-        .query_map(rusqlite::params![params.category, limit, offset], |row| {
+        .query_map(rusqlite::params![params.category, cutoff_date, limit, offset], |row| {
             Ok(ArticleSummary {
                 id: row.get(0)?,
                 title: row.get(1)?,
@@ -255,9 +263,12 @@ pub fn articles_extract_via_webview(
 ) -> Result<ExtractViaWebviewResponse, String> {
     let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
 
+    // Sanitize the incoming HTML to prevent stored XSS
+    let sanitized_html = content_extractor::sanitize_html(&params.extracted_html);
+
     // Strip HTML to get plain text for FTS
     let body_text = {
-        let doc = scraper::Html::parse_fragment(&params.extracted_html);
+        let doc = scraper::Html::parse_fragment(&sanitized_html);
         doc.root_element()
             .text()
             .collect::<Vec<_>>()
@@ -269,7 +280,7 @@ pub fn articles_extract_via_webview(
 
     // Extract image URLs
     let image_urls: Vec<String> = {
-        let doc = scraper::Html::parse_fragment(&params.extracted_html);
+        let doc = scraper::Html::parse_fragment(&sanitized_html);
         let selector = scraper::Selector::parse("img[src]").unwrap();
         doc.select(&selector)
             .filter_map(|el| el.value().attr("src").map(String::from))
@@ -285,7 +296,7 @@ pub fn articles_extract_via_webview(
          cached_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
          updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
          WHERE id = ?4",
-        rusqlite::params![params.extracted_html, body_text, image_urls_json, params.article_id],
+        rusqlite::params![sanitized_html, body_text, image_urls_json, params.article_id],
     )
     .map_err(|e| format!("DB update error: {e}"))?;
 

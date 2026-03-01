@@ -44,9 +44,15 @@ pub async fn feeds_add_source(
     db: State<'_, Arc<Database>>,
     params: AddSourceParams,
 ) -> Result<NewsSource, String> {
-    // Basic URL validation
+    // URL scheme validation — require http(s)
     if !params.feed_url.starts_with("http://") && !params.feed_url.starts_with("https://") {
         return Err("INVALID_URL".to_string());
+    }
+
+    // Security: warn about insecure feeds (LOW-1)
+    let is_insecure_feed = params.feed_url.starts_with("http://");
+    if is_insecure_feed {
+        log::warn!("Adding insecure (HTTP) feed URL — content may be tampered via MITM: {}", params.feed_url);
     }
 
     // Check for duplicate

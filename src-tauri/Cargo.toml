@@ -32,6 +32,7 @@ feed-rs = "2"
 # Content extraction
 readability = "0.3"
 scraper = "0.22"
+ammonia = "4"
 
 # HTTP client
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }

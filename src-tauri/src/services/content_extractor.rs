@@ -57,6 +57,8 @@ async fn extract_via_readability(url: &str) -> Result<ExtractionResult, String> 
     .map_err(|e| format!("Readability extraction error: {e}"))?;
 
     let body_html = product.content.clone();
+    // Sanitize extracted HTML to prevent stored XSS
+    let body_html = sanitize_html(&body_html);
     let body_text = strip_html_tags(&product.content);
     let image_urls = extract_image_urls_from_html(&product.content);
 
@@ -125,8 +127,9 @@ async fn extract_via_scraper(url: &str) -> Result<ExtractionResult, String> {
         return Err("No article content found via CSS selectors".to_string());
     }
 
-    // Clean up the scraped HTML - remove script/style tags
+    // Clean up the scraped HTML - remove script/style tags, then sanitize
     let body_html = clean_html(&body_html);
+    let body_html = sanitize_html(&body_html);
     let body_text = strip_html_tags(&body_html);
     let image_urls = extract_image_urls_from_html(&body_html);
 
@@ -190,4 +193,53 @@ fn clean_html(html: &str) -> String {
     }
 
     output
+}
+
+/// Sanitize HTML using an allowlist approach to prevent XSS.
+/// Permits safe structural/formatting tags and strips everything else
+/// (event handlers, script, iframe, object, embed, form, svg, etc.).
+pub fn sanitize_html(html: &str) -> String {
+    use std::collections::HashSet;
+
+    let tags: HashSet<&str> = [
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "p", "br", "hr",
+        "ul", "ol", "li",
+        "blockquote", "pre", "code",
+        "a", "img",
+        "strong", "b", "em", "i", "u", "s", "del", "ins",
+        "table", "thead", "tbody", "tr", "th", "td",
+        "figure", "figcaption", "picture", "source",
+        "div", "span", "section", "article", "aside",
+        "mark", "sub", "sup", "abbr", "time", "details", "summary",
+    ]
+    .iter()
+    .copied()
+    .collect();
+
+    let mut tag_attrs = std::collections::HashMap::new();
+    tag_attrs.insert("a", ["href", "title"].iter().copied().collect::<HashSet<&str>>());
+    tag_attrs.insert("img", ["src", "alt", "title", "loading", "width", "height"].iter().copied().collect());
+    tag_attrs.insert("td", ["colspan", "rowspan"].iter().copied().collect());
+    tag_attrs.insert("th", ["colspan", "rowspan"].iter().copied().collect());
+    tag_attrs.insert("time", ["datetime"].iter().copied().collect());
+    tag_attrs.insert("source", ["srcset", "type", "media"].iter().copied().collect());
+    tag_attrs.insert("abbr", ["title"].iter().copied().collect());
+
+    ammonia::Builder::new()
+        .tags(tags)
+        .link_rel(Some("noopener noreferrer"))
+        .url_relative(ammonia::UrlRelative::Deny)
+        .tag_attributes(tag_attrs)
+        .clean(html)
+        .to_string()
+}
+
+/// Sanitize search excerpts — only allow <mark> tags (used by FTS5 snippet).
+pub fn sanitize_search_excerpt(excerpt: &str) -> String {
+    let tags: std::collections::HashSet<&str> = ["mark"].iter().copied().collect();
+    ammonia::Builder::new()
+        .tags(tags)
+        .clean(excerpt)
+        .to_string()
 }

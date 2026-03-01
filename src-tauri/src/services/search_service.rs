@@ -132,7 +132,10 @@ pub fn search_articles(
                 url: row.get(2)?,
                 source_name: row.get(3)?,
                 publish_date: row.get(4)?,
-                excerpt: row.get::<_, String>(5).unwrap_or_default(),
+                excerpt: {
+                    let raw: String = row.get::<_, String>(5).unwrap_or_default();
+                    crate::services::content_extractor::sanitize_search_excerpt(&raw)
+                },
                 relevance_rank: row.get::<_, f64>(6).unwrap_or(0.0),
             })
         })
