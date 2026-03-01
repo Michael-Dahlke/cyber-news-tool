@@ -42,23 +42,23 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T006 Create SQLite database module with connection pool and migration runner in src-tauri/src/db/mod.rs
-- [ ] T007 Create initial schema migration with all tables, FTS5 virtual table, triggers, indexes, and default settings rows in src-tauri/src/db/migrations/001_initial.sql
-- [ ] T008 [P] Create Article model with ArticleCategory and ExtractionMethod enums in src-tauri/src/models/article.rs
-- [ ] T009 [P] Create NewsSource model with FeedType enum in src-tauri/src/models/source.rs
-- [ ] T010 [P] Create AppSettings model with Theme enum and Default impl in src-tauri/src/models/settings.rs
-- [ ] T011 Create models module barrel file with re-exports in src-tauri/src/models/mod.rs
-- [ ] T012 [P] Implement keychain service for OS credential storage (macOS Keychain / Windows Credential Manager) with service name `cyber-news-reader` in src-tauri/src/services/keychain.rs
-- [ ] T013 [P] Create services module barrel file in src-tauri/src/services/mod.rs
-- [ ] T014 Implement settings Tauri commands (get_all, update, set_api_key, clear_api_key, get_app_info) per contracts/settings.md in src-tauri/src/commands/settings.rs
-- [ ] T015 Create commands module barrel file in src-tauri/src/commands/mod.rs
-- [ ] T016 Configure Tauri app entry point with module declarations, command registration, database initialization, and managed state in src-tauri/src/main.rs
-- [ ] T017 [P] Create shared TypeScript type definitions matching all contract types in src/types/ (article.ts, source.ts, search.ts, kql.ts, settings.ts, index.ts)
-- [ ] T018 [P] Create frontend Tauri invoke wrapper services in src/services/ (feedService.ts, articleService.ts, searchService.ts, kqlService.ts, settingsService.ts, index.ts)
-- [ ] T019 [P] Create AppShell layout component with sidebar navigation and content area in src/components/Layout/AppShell.tsx
-- [ ] T020 [P] Create Sidebar navigation component with route links (Dashboard, Search, Settings) in src/components/Layout/Sidebar.tsx
-- [ ] T021 Create app entry point with React Router and route definitions in src/App.tsx and src/main.tsx
-- [ ] T022 Seed default cybersecurity news sources (BleepingComputer, Krebs on Security, The Hacker News, CISA, Microsoft Security Blog, DarkReading, etc.) in src-tauri/src/db/seed.rs
+- [X] T006 Create SQLite database module with connection pool and migration runner in src-tauri/src/db/mod.rs
+- [X] T007 Create initial schema migration with all tables, FTS5 virtual table, triggers, indexes, and default settings rows in src-tauri/src/db/migrations/001_initial.sql
+- [X] T008 [P] Create Article model with ArticleCategory and ExtractionMethod enums in src-tauri/src/models/article.rs
+- [X] T009 [P] Create NewsSource model with FeedType enum in src-tauri/src/models/source.rs
+- [X] T010 [P] Create AppSettings model with Theme enum and Default impl in src-tauri/src/models/settings.rs
+- [X] T011 Create models module barrel file with re-exports in src-tauri/src/models/mod.rs
+- [X] T012 [P] Implement keychain service for OS credential storage (macOS Keychain / Windows Credential Manager) with service name `cyber-news-reader` in src-tauri/src/services/keychain.rs
+- [X] T013 [P] Create services module barrel file in src-tauri/src/services/mod.rs
+- [X] T014 Implement settings Tauri commands (get_all, update, set_api_key, clear_api_key, get_app_info) per contracts/settings.md in src-tauri/src/commands/settings.rs
+- [X] T015 Create commands module barrel file in src-tauri/src/commands/mod.rs
+- [X] T016 Configure Tauri app entry point with module declarations, command registration, database initialization, and managed state in src-tauri/src/main.rs
+- [X] T017 [P] Create shared TypeScript type definitions matching all contract types in src/types/ (article.ts, source.ts, search.ts, kql.ts, settings.ts, index.ts)
+- [X] T018 [P] Create frontend Tauri invoke wrapper services in src/services/ (feedService.ts, articleService.ts, searchService.ts, kqlService.ts, settingsService.ts, index.ts)
+- [X] T019 [P] Create AppShell layout component with sidebar navigation and content area in src/components/Layout/AppShell.tsx
+- [X] T020 [P] Create Sidebar navigation component with route links (Dashboard, Search, Settings) in src/components/Layout/Sidebar.tsx
+- [X] T021 Create app entry point with React Router and route definitions in src/App.tsx and src/main.tsx
+- [X] T022 Seed default cybersecurity news sources (BleepingComputer, Krebs on Security, The Hacker News, CISA, Microsoft Security Blog, DarkReading, etc.) in src-tauri/src/db/seed.rs
 
 **Checkpoint**: App launches with sidebar navigation, settings screen saves/loads preferences, API key stores in OS keychain. Database creates all tables on first run.
 
