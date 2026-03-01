@@ -1,11 +1,12 @@
 use crate::db::Database;
 use crate::models::{AppInfo, AppSettings, SettingsUpdate, Theme};
 use crate::services::keychain;
+use std::sync::Arc;
 use tauri::State;
 
 /// Retrieve all application settings.
 #[tauri::command]
-pub fn settings_get_all(db: State<'_, Database>) -> Result<AppSettings, String> {
+pub fn settings_get_all(db: State<'_, Arc<Database>>) -> Result<AppSettings, String> {
     let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
 
     let mut settings = AppSettings::default();
@@ -47,7 +48,7 @@ pub fn settings_get_all(db: State<'_, Database>) -> Result<AppSettings, String> 
 /// Update one or more settings.
 #[tauri::command]
 pub fn settings_update(
-    db: State<'_, Database>,
+    db: State<'_, Arc<Database>>,
     update: SettingsUpdate,
 ) -> Result<AppSettings, String> {
     // Validate
@@ -114,7 +115,7 @@ pub fn settings_clear_api_key() -> Result<bool, String> {
 #[tauri::command]
 pub fn settings_get_app_info(
     app_handle: tauri::AppHandle,
-    db: State<'_, Database>,
+    db: State<'_, Arc<Database>>,
 ) -> Result<AppInfo, String> {
     use crate::db::get_db_path;
 

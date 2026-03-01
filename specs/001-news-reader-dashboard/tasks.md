@@ -72,18 +72,18 @@
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] Implement feed fetching and RSS/Atom parsing service using feed-rs with concurrent source fetching in src-tauri/src/services/feed_service.rs
-- [ ] T024 [US1] Implement article category classification logic with source-level tags and keyword matching for Microsoft and Threat Intelligence categories in src-tauri/src/services/feed_service.rs
-- [ ] T025 [US1] Implement URL deduplication logic (FR-037) — skip insert when article URL already exists in src-tauri/src/services/feed_service.rs
-- [ ] T026 [US1] Implement feeds Tauri commands (list_sources, add_source, update_source, remove_source, refresh) per contracts/feeds.md in src-tauri/src/commands/feeds.rs
-- [ ] T027 [US1] Implement articles list_by_category command with date filtering per contracts/articles.md in src-tauri/src/commands/articles.rs
-- [ ] T028 [US1] Implement auto-refresh timer (default 60 min) and emit feeds://refresh-progress and feeds://auto-refresh-complete events in src-tauri/src/main.rs
-- [ ] T029 [P] [US1] Create ArticleCard component displaying title, source name, publish date, and category badge in src/components/Dashboard/ArticleCard.tsx
-- [ ] T030 [P] [US1] Create NewsSection component with section header, last-updated timestamp (FR-007), scrollable article list, and "No articles found" placeholder in src/components/Dashboard/NewsSection.tsx
-- [ ] T031 [US1] Create DashboardView component assembling three NewsSection instances (Today days_back=0, Microsoft days_back=7, Threat Intel days_back=7) in src/components/Dashboard/DashboardView.tsx
-- [ ] T032 [US1] Create OfflineIndicator component that detects connectivity status and displays cached-data warning in src/components/Layout/OfflineIndicator.tsx
-- [ ] T033 [US1] Create SettingsView component with tabbed layout for general settings in src/components/Settings/SettingsView.tsx
-- [ ] T034 [P] [US1] Create SourceManager component with default source toggle, custom source add/validate, and remove controls in src/components/Settings/SourceManager.tsx
+- [X] T023 [US1] Implement feed fetching and RSS/Atom parsing service using feed-rs with concurrent source fetching in src-tauri/src/services/feed_service.rs
+- [X] T024 [US1] Implement article category classification logic with source-level tags and keyword matching for Microsoft and Threat Intelligence categories in src-tauri/src/services/feed_service.rs
+- [X] T025 [US1] Implement URL deduplication logic (FR-037) — skip insert when article URL already exists in src-tauri/src/services/feed_service.rs
+- [X] T026 [US1] Implement feeds Tauri commands (list_sources, add_source, update_source, remove_source, refresh) per contracts/feeds.md in src-tauri/src/commands/feeds.rs
+- [X] T027 [US1] Implement articles list_by_category command with date filtering per contracts/articles.md in src-tauri/src/commands/articles.rs
+- [X] T028 [US1] Implement auto-refresh timer (default 60 min) and emit feeds://refresh-progress and feeds://auto-refresh-complete events in src-tauri/src/main.rs
+- [X] T029 [P] [US1] Create ArticleCard component displaying title, source name, publish date, and category badge in src/components/Dashboard/ArticleCard.tsx
+- [X] T030 [P] [US1] Create NewsSection component with section header, last-updated timestamp (FR-007), scrollable article list, and "No articles found" placeholder in src/components/Dashboard/NewsSection.tsx
+- [X] T031 [US1] Create DashboardView component assembling three NewsSection instances (Today days_back=0, Microsoft days_back=7, Threat Intel days_back=7) in src/components/Dashboard/DashboardView.tsx
+- [X] T032 [US1] Create OfflineIndicator component that detects connectivity status and displays cached-data warning in src/components/Layout/OfflineIndicator.tsx
+- [X] T033 [US1] Create SettingsView component with tabbed layout for general settings in src/components/Settings/SettingsView.tsx
+- [X] T034 [P] [US1] Create SourceManager component with default source toggle, custom source add/validate, and remove controls in src/components/Settings/SourceManager.tsx
 
 **Checkpoint**: Dashboard loads three populated sections. Feed refresh works. Sources can be managed in Settings. Offline mode shows cached articles with indicator.
 
