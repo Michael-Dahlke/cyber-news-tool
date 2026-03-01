@@ -97,14 +97,14 @@
 
 ### Implementation for User Story 2
 
-- [ ] T035 [US2] Implement content extraction service with readability crate (primary), scraper CSS-selector overrides (secondary), and extraction status tracking in src-tauri/src/services/content_extractor.rs
-- [ ] T036 [US2] Implement articles get_content command with extraction pipeline trigger per contracts/articles.md in src-tauri/src/commands/articles.rs
-- [ ] T037 [US2] Implement extract_via_webview command for WebView fallback HTML storage in src-tauri/src/commands/articles.rs
-- [ ] T038 [US2] Implement cache service with eviction logic (FR-038, configurable retention, background eviction on launch) in src-tauri/src/services/cache_service.rs
-- [ ] T039 [US2] Implement get_cache_status and evict_cache commands in src-tauri/src/commands/articles.rs
-- [ ] T040 [P] [US2] Create ContentRenderer component that renders cleaned HTML with inline images and typography styles in src/components/Reader/ContentRenderer.tsx
-- [ ] T041 [P] [US2] Create WebViewFallback component that loads article URL in iframe, runs Readability.js extraction, and sends result back via extract_via_webview command in src/components/Reader/WebViewFallback.tsx
-- [ ] T042 [US2] Create ReaderView component with article header (title, source, date), content area, extraction-failed fallback (FR-015), and "Back" navigation control (FR-014) in src/components/Reader/ReaderView.tsx
+- [X] T035 [US2] Implement content extraction service with readability crate (primary), scraper CSS-selector overrides (secondary), and extraction status tracking in src-tauri/src/services/content_extractor.rs
+- [X] T036 [US2] Implement articles get_content command with extraction pipeline trigger per contracts/articles.md in src-tauri/src/commands/articles.rs
+- [X] T037 [US2] Implement extract_via_webview command for WebView fallback HTML storage in src-tauri/src/commands/articles.rs
+- [X] T038 [US2] Implement cache service with eviction logic (FR-038, configurable retention, background eviction on launch) in src-tauri/src/services/cache_service.rs
+- [X] T039 [US2] Implement get_cache_status and evict_cache commands in src-tauri/src/commands/articles.rs
+- [X] T040 [P] [US2] Create ContentRenderer component that renders cleaned HTML with inline images and typography styles in src/components/Reader/ContentRenderer.tsx
+- [X] T041 [P] [US2] Create WebViewFallback component that loads article URL in iframe, runs Readability.js extraction, and sends result back via extract_via_webview command in src/components/Reader/WebViewFallback.tsx
+- [X] T042 [US2] Create ReaderView component with article header (title, source, date), content area, extraction-failed fallback (FR-015), and "Back" navigation control (FR-014) in src/components/Reader/ReaderView.tsx
 
 **Checkpoint**: Clicking any article opens the reader with cleaned content and images. Cached articles readable offline. Failed extraction shows "Open in browser" link.
 

@@ -27,6 +27,14 @@ pub fn run() {
                     .expect("Failed to seed default sources");
             }
 
+            // Run cache eviction on launch (FR-038)
+            {
+                let conn = database.conn.lock().expect("Failed to lock DB for cache eviction");
+                if let Err(e) = services::cache_service::evict_on_launch(&conn) {
+                    log::warn!("Cache eviction on launch failed: {e}");
+                }
+            }
+
             // Read auto-refresh interval from settings
             let refresh_interval_min: u64 = {
                 let conn = database.conn.lock().expect("Failed to lock DB for settings");
@@ -86,6 +94,10 @@ pub fn run() {
             commands::feeds::feeds_remove_source,
             commands::feeds::feeds_refresh,
             commands::articles::articles_list_by_category,
+            commands::articles::articles_get_content,
+            commands::articles::articles_extract_via_webview,
+            commands::articles::articles_get_cache_status,
+            commands::articles::articles_evict_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

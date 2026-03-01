@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { NewsSection } from "./NewsSection";
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ArticleSummary } from "@/services/articleService";
 
 export function DashboardView() {
+  const navigate = useNavigate();
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -63,9 +65,7 @@ export function DashboardView() {
   }, []);
 
   const handleArticleClick = (article: ArticleSummary) => {
-    // Phase 4 (US2) will implement the reader view.
-    // For now, open the article URL in the default browser.
-    window.open(article.url, "_blank");
+    navigate(`/article/${article.id}`);
   };
 
   return (
