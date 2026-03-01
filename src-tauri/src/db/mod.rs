@@ -59,6 +59,22 @@ impl Database {
             log::info!("Applied migration: 001_initial");
         }
 
+        // Migration 002: Add body_size_bytes column and new settings keys
+        let already_applied_002: bool = conn
+            .prepare("SELECT COUNT(*) FROM _migrations WHERE name = ?1")?
+            .query_row(["002_add_body_size_bytes"], |row| row.get::<_, i64>(0))
+            .map(|count| count > 0)?;
+
+        if !already_applied_002 {
+            let migration_sql = include_str!("migrations/002_add_body_size_bytes.sql");
+            conn.execute_batch(migration_sql)?;
+            conn.execute(
+                "INSERT INTO _migrations (name) VALUES (?1)",
+                ["002_add_body_size_bytes"],
+            )?;
+            log::info!("Applied migration: 002_add_body_size_bytes");
+        }
+
         Ok(())
     }
 }

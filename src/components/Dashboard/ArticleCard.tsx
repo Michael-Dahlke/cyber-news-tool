@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 import type { ArticleSummary } from "@/services/articleService";
 import { ExternalLink, Clock, Shield, Building2, Newspaper } from "lucide-react";
 
@@ -41,8 +42,16 @@ interface ArticleCardProps {
 }
 
 export function ArticleCard({ article, onClick }: ArticleCardProps) {
+  const navigate = useNavigate();
   const config = categoryConfig[article.category as keyof typeof categoryConfig] ?? categoryConfig.general;
   const CategoryIcon = config.icon;
+
+  const handleSourceClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (article.source_id) {
+      navigate(`/sources/${article.source_id}`);
+    }
+  };
 
   return (
     <button
@@ -75,9 +84,17 @@ export function ArticleCard({ article, onClick }: ArticleCardProps) {
         {article.title}
       </h3>
 
-      {/* Footer: Source + external link icon */}
+      {/* Footer: Source (clickable) + external link icon */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{article.source_name}</span>
+        <span
+          role="link"
+          tabIndex={0}
+          onClick={handleSourceClick}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSourceClick(e as unknown as React.MouseEvent); }}
+          className="cursor-pointer hover:text-primary hover:underline"
+        >
+          {article.source_name}
+        </span>
         <ExternalLink className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
     </button>

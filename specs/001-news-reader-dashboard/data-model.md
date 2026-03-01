@@ -110,6 +110,7 @@ Represents a single news article (FR-001–FR-016, FR-037–FR-039).
 | `image_urls` | TEXT | | JSON array of image URLs extracted from article body (FR-011) |
 | `is_cached` | INTEGER | NOT NULL, DEFAULT 0 | 1 = full content cached locally (FR-016) |
 | `cached_at` | TEXT | | ISO 8601 timestamp when content was cached; used for eviction (FR-038) |
+| `body_size_bytes` | INTEGER | NOT NULL, DEFAULT 0 | Byte length of `body_html` + `body_text` combined; used for 20 GB cache cap accounting (FR-038) |
 | `extraction_method` | TEXT | | How content was obtained: `readability`, `scraper`, `webview`, `failed` |
 | `created_at` | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | ISO 8601 |
 | `updated_at` | TEXT | NOT NULL, DEFAULT CURRENT_TIMESTAMP | ISO 8601 |
@@ -172,11 +173,11 @@ Represents a single news article (FR-001–FR-016, FR-037–FR-039).
 ```
 
 **Cache Eviction** (FR-038):
-- Background job runs on app launch and periodically
-- Deletes rows where `is_cached = 1` AND `cached_at < (NOW - retention_period)`
-- Retention period from `app_settings` key `cache_retention_days` (default: 30)
-- Eviction sets `body_html = NULL`, `body_text = NULL`, `is_cached = 0`, `cached_at = NULL`
+- Background job runs on app launch and on the `WindowEvent::Focused` background-resume check
+- **Time-based (primary)**: DELETE body where `is_cached = 1` AND `cached_at < (NOW - cache_retention_days)`
+- Eviction sets `body_html = NULL`, `body_text = NULL`, `body_size_bytes = 0`, `is_cached = 0`, `cached_at = NULL`
   (preserves article metadata for search index; FTS row is also updated)
+- **Size-based cap (secondary, FR-038)**: After time eviction, compute `SELECT SUM(body_size_bytes) FROM articles WHERE is_cached = 1`. If `SUM > article_cache_size_limit_gb * 1_073_741_824`, delete cached article bodies in batches of 50 ordered by `cached_at ASC` (oldest first) until the sum drops below the cap. Calculation uses `body_size_bytes = LENGTH(body_html) + LENGTH(body_text)` of UTF-8 bytes stored at cache time.
 
 ---
 
@@ -288,8 +289,10 @@ Key-value store for user-configurable preferences (FR-032, FR-038).
 |-----|--------------|-------------|-----|
 | `llm_endpoint` | `""` (empty) | LLM service API URL | FR-032 |
 | `llm_model` | `""` (empty) | Optional model name | FR-032 |
-| `feed_refresh_interval_min` | `60` | Feed auto-refresh interval in minutes | FR-006 |
-| `cache_retention_days` | `30` | Days before cached content is evicted | FR-038 |
+| `background_refresh_threshold_hours` | `4` | Hours of background inactivity before refresh on next focus | FR-006 |
+| `cache_retention_days` | `30` | Days before cached content is evicted (time-based rule) | FR-038 |
+| `article_cache_size_limit_gb` | `20` | Max gigabytes of article body cache before oldest-first size eviction triggers | FR-038 |
+| `reader_font_size` | `16` | Reader body font size in pixels (range 12–28) | FR-043 |
 | `theme` | `system` | UI theme: `system`, `light`, `dark` | — |
 
 **Note**: The LLM API key is NOT stored in this table. Per FR-032, it is stored in the OS
@@ -320,6 +323,7 @@ pub struct Article {
     pub image_urls: Vec<String>,      // deserialized from JSON column
     pub is_cached: bool,
     pub cached_at: Option<String>,
+    pub body_size_bytes: i64,
     pub extraction_method: Option<ExtractionMethod>,
     pub created_at: String,
     pub updated_at: String,

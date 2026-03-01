@@ -10,7 +10,12 @@ publicly available RSS/Atom feeds into a categorized dashboard (Today's News, Mi
 Threat Intelligence). Includes an in-app reader with content extraction and WebView fallback,
 full-text keyword search with date-range filtering, and an AI-powered KQL query generator that
 uses a user-configured LLM service to produce Microsoft Sentinel / Defender XDR detection queries
-from article context.
+from article context. Session 2026-03-01 additions: source browsing — tappable source chip on
+every article card plus a dedicated Sources browser page (FR-040–FR-042); a persistent reader font
+size control (FR-043); a full-window image lightbox with pinch/scroll zoom (FR-044–FR-045); a 20 GB
+article body cache size cap with oldest-first eviction layered on the existing 30-day time rule
+(FR-038); and a revised feed refresh policy (cold launch + 4-hour background-focus threshold;
+back-navigation never triggers a refresh, FR-006).
 
 ## Technical Context
 
@@ -53,6 +58,9 @@ from article context.
 
 **Pre-Phase 0 status**: PASS (vacuously — constitution not yet ratified).
 **Post-Phase 1 re-check (2026-02-28)**: PASS — all 4 principles and 2 policy sections satisfied.
+**Post-spec-revision re-check (2026-03-01)**: PASS — FR-040–045 introduce no AI/LLM usage, no secret
+storage, no commercial redistribution. Cache-size cap (FR-038 update) is purely local data management.
+Refresh-policy change (FR-006 update) is a UX-only timing adjustment.
 
 > **No violations. No Complexity Tracking entries required.**
 
@@ -110,18 +118,23 @@ src/                          # React frontend
 │   ├── Reader/
 │   │   ├── ReaderView.tsx
 │   │   ├── ContentRenderer.tsx
-│   │   └── WebViewFallback.tsx
-│   ├── Search/
-│   │   ├── SearchBar.tsx
-│   │   ├── SearchResults.tsx
-│   │   └── DateRangeFilter.tsx
-│   ├── KQL/
-│   │   ├── KQLPanel.tsx
-│   │   └── KQLQueryCard.tsx
-│   ├── Settings/
-│   │   ├── SettingsView.tsx
-│   │   ├── SourceManager.tsx
-│   │   └── LLMConfig.tsx
+   │   ├── WebViewFallback.tsx
+   │   ├── FontSizeControl.tsx   # stepper for reader font size (FR-043)
+   │   └── ImageLightbox.tsx     # Radix Dialog full-window image view (FR-044–045)
+   ├── Search/
+   │   ├── SearchBar.tsx
+   │   ├── SearchResults.tsx
+   │   └── DateRangeFilter.tsx
+   ├── KQL/
+   │   ├── KQLPanel.tsx
+   │   └── KQLQueryCard.tsx
+   ├── Settings/
+   │   ├── SettingsView.tsx
+   │   ├── SourceManager.tsx
+   │   └── LLMConfig.tsx
+   ├── Sources/
+   │   ├── SourcesView.tsx       # lists all active sources (FR-041)
+   │   └── SourceFeedView.tsx    # filtered article list for one source (FR-042)
 │   └── Layout/
 │       ├── AppShell.tsx
 │       ├── Sidebar.tsx

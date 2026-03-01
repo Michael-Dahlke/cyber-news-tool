@@ -25,8 +25,10 @@ type AppSettings = {
   llm_endpoint: string;           // May be empty if not configured
   llm_model: string;              // May be empty
   has_api_key: boolean;           // True if API key exists in keychain (never returns the key itself)
-  feed_refresh_interval_min: number;
+  background_refresh_threshold_hours: number;  // Hours inactive before refresh on next focus (FR-006)
   cache_retention_days: number;
+  article_cache_size_limit_gb: number;         // Max GB of article body cache (FR-038)
+  reader_font_size: number;                    // Reader body font size in px, range 12–28 (FR-043)
   theme: "system" | "light" | "dark";
 };
 ```
@@ -46,8 +48,10 @@ Updates one or more settings (FR-032).
 type UpdateParams = {
   llm_endpoint?: string;
   llm_model?: string;
-  feed_refresh_interval_min?: number;
+  background_refresh_threshold_hours?: number;
   cache_retention_days?: number;
+  article_cache_size_limit_gb?: number;
+  reader_font_size?: number;
   theme?: "system" | "light" | "dark";
 };
 ```
@@ -61,10 +65,12 @@ type UpdateResponse = {
 ```
 
 **Errors**:
-- `INVALID_INTERVAL` — `feed_refresh_interval_min` is less than 1
+- `INVALID_THRESHOLD` — `background_refresh_threshold_hours` is less than 1
 - `INVALID_RETENTION` — `cache_retention_days` is less than 1
+- `INVALID_CACHE_LIMIT` — `article_cache_size_limit_gb` is less than 1
+- `INVALID_FONT_SIZE` — `reader_font_size` is outside the range 12–28
 
-**Behavior**: Only provided fields are updated. Omitted fields remain unchanged. After updating `feed_refresh_interval_min`, the background refresh timer is rescheduled.
+**Behavior**: Only provided fields are updated. Omitted fields remain unchanged. After updating `background_refresh_threshold_hours`, the elapsed-time check on next focus will use the new value.
 
 ---
 

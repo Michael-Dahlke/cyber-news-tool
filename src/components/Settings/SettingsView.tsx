@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as settingsService from "@/services/settingsService";
-import type { AppSettings, SettingsUpdate, Theme, AppInfo } from "@/types";
+import * as articleService from "@/services/articleService";
+import type { AppSettings, SettingsUpdate, Theme, AppInfo, CacheStatusResponse } from "@/types";
 import { SourceManager } from "./SourceManager";
 import { LLMConfig } from "./LLMConfig";
 import { useThemeContext } from "@/hooks/ThemeContext";
@@ -32,26 +33,33 @@ export function SettingsView() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [cacheStatus, setCacheStatus] = useState<CacheStatusResponse | null>(null);
   const { setTheme: applyTheme } = useThemeContext();
 
   // Form state
   const [theme, setTheme] = useState<Theme>("system");
-  const [refreshInterval, setRefreshInterval] = useState(60);
+  const [refreshThreshold, setRefreshThreshold] = useState(4);
   const [cacheRetention, setCacheRetention] = useState(30);
+  const [cacheSizeLimit, setCacheSizeLimit] = useState(20);
+  const [readerFontSize, setReaderFontSize] = useState(16);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [settingsResult, infoResult] = await Promise.all([
+      const [settingsResult, infoResult, cacheResult] = await Promise.all([
         settingsService.getSettings(),
         settingsService.getAppInfo(),
+        articleService.getCacheStatus(),
       ]);
       setSettings(settingsResult);
       setAppInfo(infoResult);
+      setCacheStatus(cacheResult);
       setTheme(settingsResult.theme);
-      setRefreshInterval(settingsResult.feed_refresh_interval_min);
+      setRefreshThreshold(settingsResult.background_refresh_threshold_hours);
       setCacheRetention(settingsResult.cache_retention_days);
+      setCacheSizeLimit(settingsResult.article_cache_size_limit_gb);
+      setReaderFontSize(settingsResult.reader_font_size);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -70,8 +78,10 @@ export function SettingsView() {
     try {
       const update: SettingsUpdate = {
         theme,
-        feed_refresh_interval_min: refreshInterval,
+        background_refresh_threshold_hours: refreshThreshold,
         cache_retention_days: cacheRetention,
+        article_cache_size_limit_gb: cacheSizeLimit,
+        reader_font_size: readerFontSize,
       };
       const updated = await settingsService.updateSettings(update);
       setSettings(updated);
@@ -83,10 +93,14 @@ export function SettingsView() {
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg === "INVALID_INTERVAL") {
-        setError("Refresh interval must be at least 1 minute");
+      if (msg === "INVALID_THRESHOLD") {
+        setError("Refresh threshold must be at least 1 hour");
       } else if (msg === "INVALID_RETENTION") {
         setError("Cache retention must be at least 1 day");
+      } else if (msg === "INVALID_CACHE_LIMIT") {
+        setError("Cache size limit must be at least 1 GB");
+      } else if (msg === "INVALID_FONT_SIZE") {
+        setError("Font size must be between 8 and 72");
       } else {
         setError(msg);
       }
@@ -135,10 +149,15 @@ export function SettingsView() {
         <GeneralSettings
           theme={theme}
           setTheme={setTheme}
-          refreshInterval={refreshInterval}
-          setRefreshInterval={setRefreshInterval}
+          refreshThreshold={refreshThreshold}
+          setRefreshThreshold={setRefreshThreshold}
           cacheRetention={cacheRetention}
           setCacheRetention={setCacheRetention}
+          cacheSizeLimit={cacheSizeLimit}
+          setCacheSizeLimit={setCacheSizeLimit}
+          readerFontSize={readerFontSize}
+          setReaderFontSize={setReaderFontSize}
+          cacheStatus={cacheStatus}
           error={error}
           success={success}
           saving={saving}
@@ -169,10 +188,15 @@ export function SettingsView() {
 function GeneralSettings({
   theme,
   setTheme,
-  refreshInterval,
-  setRefreshInterval,
+  refreshThreshold,
+  setRefreshThreshold,
   cacheRetention,
   setCacheRetention,
+  cacheSizeLimit,
+  setCacheSizeLimit,
+  readerFontSize,
+  setReaderFontSize,
+  cacheStatus,
   error,
   success,
   saving,
@@ -180,10 +204,15 @@ function GeneralSettings({
 }: {
   theme: Theme;
   setTheme: (t: Theme) => void;
-  refreshInterval: number;
-  setRefreshInterval: (n: number) => void;
+  refreshThreshold: number;
+  setRefreshThreshold: (n: number) => void;
   cacheRetention: number;
   setCacheRetention: (n: number) => void;
+  cacheSizeLimit: number;
+  setCacheSizeLimit: (n: number) => void;
+  readerFontSize: number;
+  setReaderFontSize: (n: number) => void;
+  cacheStatus: CacheStatusResponse | null;
   error: string | null;
   success: boolean;
   saving: boolean;
@@ -214,24 +243,24 @@ function GeneralSettings({
         </p>
       </div>
 
-      {/* Feed refresh interval */}
+      {/* Background refresh threshold */}
       <div className="flex flex-col gap-1.5">
         <label
-          htmlFor="refresh-interval"
+          htmlFor="refresh-threshold"
           className="text-sm font-medium text-foreground"
         >
-          Feed Refresh Interval (minutes)
+          Background Refresh Threshold (hours)
         </label>
         <input
-          id="refresh-interval"
+          id="refresh-threshold"
           type="number"
           min={1}
-          value={refreshInterval}
-          onChange={(e) => setRefreshInterval(Number(e.target.value))}
+          value={refreshThreshold}
+          onChange={(e) => setRefreshThreshold(Number(e.target.value))}
           className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <p className="text-xs text-muted-foreground">
-          How often to automatically check for new articles (default: 60)
+          How many hours the app must be open before a background refresh fires (default: 4)
         </p>
       </div>
 
@@ -253,6 +282,75 @@ function GeneralSettings({
         />
         <p className="text-xs text-muted-foreground">
           How long to keep cached article content (default: 30)
+        </p>
+      </div>
+
+      {/* Cache size limit */}
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="cache-size-limit"
+          className="text-sm font-medium text-foreground"
+        >
+          Article Cache Size Limit (GB)
+        </label>
+        <input
+          id="cache-size-limit"
+          type="number"
+          min={1}
+          value={cacheSizeLimit}
+          onChange={(e) => setCacheSizeLimit(Number(e.target.value))}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <p className="text-xs text-muted-foreground">
+          Maximum disk space for cached article bodies (default: 20)
+        </p>
+        {cacheStatus && (
+          <div className="mt-2 flex flex-col gap-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {(cacheStatus.body_cache_size_bytes / 1_073_741_824).toFixed(2)} GB used
+              </span>
+              <span>{cacheStatus.size_cap_pct}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-2 rounded-full transition-all",
+                  cacheStatus.size_cap_pct >= 90
+                    ? "bg-destructive"
+                    : cacheStatus.size_cap_pct >= 70
+                      ? "bg-yellow-500"
+                      : "bg-primary"
+                )}
+                style={{ width: `${Math.min(cacheStatus.size_cap_pct, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {cacheStatus.cached_articles} of {cacheStatus.total_articles} articles cached
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Reader font size */}
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="reader-font-size"
+          className="text-sm font-medium text-foreground"
+        >
+          Reader Font Size (px)
+        </label>
+        <input
+          id="reader-font-size"
+          type="number"
+          min={8}
+          max={72}
+          value={readerFontSize}
+          onChange={(e) => setReaderFontSize(Number(e.target.value))}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <p className="text-xs text-muted-foreground">
+          Font size for article reader view (default: 16)
         </p>
       </div>
 

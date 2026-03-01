@@ -6,16 +6,20 @@ export interface AppSettings {
   llm_endpoint: string;
   llm_model: string;
   has_api_key: boolean;
-  feed_refresh_interval_min: number;
+  background_refresh_threshold_hours: number;
   cache_retention_days: number;
+  article_cache_size_limit_gb: number;
+  reader_font_size: number;
   theme: Theme;
 }
 
 export interface SettingsUpdate {
   llm_endpoint?: string;
   llm_model?: string;
-  feed_refresh_interval_min?: number;
+  background_refresh_threshold_hours?: number;
   cache_retention_days?: number;
+  article_cache_size_limit_gb?: number;
+  reader_font_size?: number;
   theme?: Theme;
 }
 
@@ -59,6 +63,7 @@ export interface Article {
   image_urls: string[];
   is_cached: boolean;
   cached_at: string | null;
+  body_size_bytes: number;
   extraction_method: ExtractionMethod | null;
   created_at: string;
   updated_at: string;
@@ -66,6 +71,7 @@ export interface Article {
 
 export interface ArticleListItem {
   id: number;
+  source_id: number;
   url: string;
   title: string;
   publish_date: string;
@@ -105,4 +111,23 @@ export interface KqlSuggestion {
   llm_endpoint: string;
   llm_model: string | null;
   created_at: string;
+}
+
+// ─── Cache Status ─────────────────────────────────────────
+
+export interface CacheStatusResponse {
+  cached_articles: number;
+  total_articles: number;
+  oldest_cached: string | null;
+  body_cache_size_bytes: number;
+  cache_size_limit_gb: number;
+  size_cap_pct: number;
+}
+
+// ─── Source Browsing ──────────────────────────────────────
+
+export interface ListBySourceResponse {
+  source: NewsSource;
+  articles: ArticleListItem[];
+  total: number;
 }

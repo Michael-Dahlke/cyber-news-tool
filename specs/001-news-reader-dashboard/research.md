@@ -241,6 +241,115 @@ features = ["bundled", "fts5"]
 
 ---
 
+---
+
+## R7 — Cache Size Cap Implementation
+
+### Decision: `body_size_bytes` column + cumulative SUM guard in `cache_service.rs`
+
+### Rationale
+
+SQLite's `PRAGMA page_count * page_size` measures total DB file size (including metadata, FTS
+index, and WAL), making it an inaccurate proxy for the article body cache specifically. Storing
+`body_size_bytes` computed at extraction time on each cached article row enables an exact
+`SELECT SUM(body_size_bytes) FROM articles WHERE is_cached = 1` query with no ambiguity.
+
+On each eviction run the service:
+1. Runs time-based eviction first (rows older than `cache_retention_days`).
+2. Re-queries `SUM(body_size_bytes)` for remaining cached rows.
+3. If `SUM > article_cache_size_limit_bytes`, deletes oldest-`cached_at` rows in batches of
+   50 until the sum drops below the cap.
+
+### Key Implementation Detail
+
+`body_size_bytes` is calculated as `body_html.len() + body_text.len()` at cache time (UTF-8
+byte count). This intentionally excludes index records and image bytes (images are fetched by
+the WebView on demand, not stored). The cap therefore governs stored HTML/text only.
+
+---
+
+## R8 — Source Browsing UX Pattern
+
+### Decision: Tappable `source_name` chip + dedicated `SourcesView` page; new `articles::list_by_source` IPC command
+
+### Rationale
+
+The existing `ArticleSummary` contract already includes `source_name`; adding `source_id` lets
+the frontend navigate without an extra lookup. A `list_by_source` command mirrors
+`list_by_category` so no new query infrastructure is needed — just a different WHERE clause
+(`source_id = ?` instead of `category = ?`). The Sources browser page reuses the existing
+`feeds::list_sources` contract for its source list.
+
+### New Components
+
+| Component | Purpose |
+|-----------|--------|
+| `src/components/Sources/SourcesView.tsx` | Lists all active sources (reuses `NewsSource` type) |
+| `src/components/Sources/SourceFeedView.tsx` | Filtered article list for a single source |
+| `src/components/Dashboard/SourceChip.tsx` | Tappable source badge used in `ArticleCard` + `ReaderView` header |
+
+### New IPC Command
+
+`articles::list_by_source` — takes `source_id: number`, `limit`, `offset`; returns
+`ArticleSummary[]` sorted newest-first.
+
+---
+
+## R9 — Reader Accessibility: Font Size & Image Lightbox
+
+### Decision: CSS variable for font size; Radix UI Dialog for image lightbox with pinch/scroll zoom
+
+### Rationale
+
+**Font size**: Storing the preference as a CSS custom property (`--reader-font-size: 16px`) on
+`:root` allows the entire reader component tree to inherit it without prop-drilling. The value
+is persisted in `app_settings` as `reader_font_size` (integer px, default 16, range 12–28).
+A `FontSizeControl.tsx` stepper in the reader toolbar handles increment/decrement.
+
+**Image lightbox**: Radix UI `<Dialog>` is already a dependency (used by Settings). Wrapping
+each `<img>` in the reader with an `onClick` handler that opens a Dialog containing the image
+at natural size requires zero new dependencies. Pinch-to-zoom uses the native CSS
+`touch-action: none` + pointer events for trackpad two-finger gestures. Scroll-to-pan uses
+`overflow: auto` on the dialog content when the image is zoomed beyond the window bounds.
+
+### Key CSS Approach
+
+```css
+/* Applied dynamically via React inline style on the reader root div */
+.reader-content {
+  font-size: var(--reader-font-size, 16px);
+  line-height: 1.7;
+}
+```
+
+---
+
+## R10 — Refresh Policy: Cold Launch + Background Threshold
+
+### Decision: Record `last_refresh_at` in `app_settings`; check on every `window::on_focus` event
+
+### Rationale
+
+Tauri v2 exposes `Window::on_window_event` which fires `WindowEvent::Focused(true)` each time
+the app window gains focus. This is the canonical way to detect "app resumed from background"
+on a desktop app (no separate foreground/background lifecycle like mobile). The implementation:
+
+1. On cold launch: run full feed refresh; write `last_refresh_at = NOW` to `app_settings`.
+2. Subscribe to `WindowEvent::Focused(true)` in `main.rs`.
+3. On each focus event: read `last_refresh_at`, compare to `NOW`.
+4. If `NOW - last_refresh_at > background_refresh_threshold_hours * 3600s` → trigger refresh.
+5. Back-navigation within the app (React Router) never touches `last_refresh_at` or triggers
+   any refresh; the Tauri event only fires for OS-level focus changes.
+
+The manual refresh button calls the same `feeds::refresh_all` IPC command and updates
+`last_refresh_at` on completion.
+
+### No New Dependencies Required
+
+`Window::on_window_event` is a first-party Tauri v2 API; no extra plugin needed.
+
+---
+
 ## Summary of All Resolved Items
 
 | Technical Context Item | Resolution |
@@ -251,3 +360,8 @@ features = ["bundled", "fts5"]
 | Content extraction | **readability crate + scraper overrides + Readability.js WebView fallback** |
 | LLM integration | **OpenAI-compatible Chat Completions API, user-configurable endpoint** |
 | Full-text search | **SQLite FTS5 via rusqlite** |
+| Cache size cap | **`body_size_bytes` column + SUM guard; oldest-first eviction to stay under limit** |
+| Source browsing | **`articles::list_by_source` IPC + `SourcesView` + `SourceFeedView` + `SourceChip`** |
+| Reader font size | **`--reader-font-size` CSS variable persisted in `app_settings`; `FontSizeControl` stepper** |
+| Image lightbox | **Radix UI `<Dialog>` + pointer-event zoom/pan; zero new dependencies** |
+| Refresh policy | **`last_refresh_at` in `app_settings`; checked on `WindowEvent::Focused`; cold launch + 4-hour threshold** |

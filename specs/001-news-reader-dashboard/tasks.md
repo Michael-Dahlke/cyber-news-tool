@@ -160,6 +160,66 @@
 
 ---
 
+## Phase 8: Spec Revision 2026-03-01 — New Features & Updates
+
+**Purpose**: Tasks from the 2026-03-01 spec session. Covers the refresh policy revision (FR-006), 20 GB cache cap (FR-038), reader accessibility — font size (FR-043) and image lightbox (FR-044–045) — and the new Source Browsing user story US5 (FR-040–042). Requires a new DB migration and model/type updates before any story work begins.
+
+### Data Model & Type Updates (prerequisite for all Phase 8 implementation)
+
+- [X] T060 Add `body_size_bytes INTEGER NOT NULL DEFAULT 0` column to articles table via new migration in src-tauri/src/db/migrations/002_add_body_size_bytes.sql
+- [X] T061 [P] Update Article Rust struct to add `body_size_bytes: i64` field in src-tauri/src/models/article.rs
+- [X] T062 [P] Update AppSettings Rust struct — replace `feed_refresh_interval_min` with `background_refresh_threshold_hours: i64`; add `article_cache_size_limit_gb: i64` and `reader_font_size: i32` in src-tauri/src/models/settings.rs
+- [X] T063 [P] Update shared TypeScript types — add `source_id: number` to `ArticleSummary`; replace `feed_refresh_interval_min` with `background_refresh_threshold_hours`, add `article_cache_size_limit_gb` and `reader_font_size` to `AppSettings`; update `CacheStatusResponse` to use `body_cache_size_bytes`, `cache_size_limit_gb`, `size_cap_pct` in src/types/index.ts
+
+---
+
+### US1 Revision — Refresh Policy (FR-006)
+
+- [X] T064 [US1] Replace auto-refresh timer in src-tauri/src/main.rs with cold-launch refresh; write `last_refresh_at` to app_settings after each successful refresh; subscribe to `WindowEvent::Focused` and trigger refresh only when `NOW - last_refresh_at > background_refresh_threshold_hours * 3600s` in src-tauri/src/main.rs
+
+---
+
+### US2 Revision — Cache Size Cap + Reader Accessibility (FR-038, FR-043–045)
+
+- [X] T065 [US2] Update cache_service.rs — record `body_size_bytes = body_html.len() + body_text.len()` when writing cached content; add size-cap eviction loop (`SELECT SUM(body_size_bytes)` → oldest-`cached_at` batch DELETE until sum drops below `article_cache_size_limit_gb * 1_073_741_824`) in src-tauri/src/services/cache_service.rs
+- [X] T066 [US2] Update articles::get_cache_status response to return `body_cache_size_bytes`, `cache_size_limit_gb`, `size_cap_pct` (1 decimal) per updated contracts/articles.md in src-tauri/src/commands/articles.rs
+- [X] T067 [P] [US2] Update SettingsView.tsx — add cache size progress bar showing `size_cap_pct`% and a cache size limit config input (GB) alongside the existing retention-days field in src/components/Settings/SettingsView.tsx
+- [X] T068 [P] [US2] Implement FontSizeControl.tsx — increment/decrement stepper (12–28 px range, step 2), applies `--reader-font-size` CSS variable on reader root div, persists value via `settingsService.update({ reader_font_size })` in src/components/Reader/FontSizeControl.tsx
+- [X] T069 [US2] Implement ImageLightbox.tsx — Radix UI `<Dialog>` rendered full-screen (`position: fixed, inset: 0`), CSS `transform: scale()` driven by pointer events for pinch-to-zoom on trackpad, `overflow: auto` on dialog content with image at natural size for scroll-to-pan when zoomed, dismiss button returns to reader in src/components/Reader/ImageLightbox.tsx
+- [X] T070 [US2] Update ContentRenderer.tsx — set `--reader-font-size` CSS variable on root div from settings; wrap each `<img>` element with an `onClick` handler that opens ImageLightbox with the clicked image src in src/components/Reader/ContentRenderer.tsx
+- [X] T071 [US2] Update ReaderView.tsx — render `<FontSizeControl />` in the reader toolbar alongside the back-nav control in src/components/Reader/ReaderView.tsx
+
+**Checkpoint**: Back-navigation never triggers a refresh. Cache size enforces 20 GB cap with oldest-first eviction. Reader font size persists across sessions. Tapping an image opens full-window lightbox with zoom and pan.
+
+---
+
+### US5 (New Story) — Source Browsing (FR-040–042) 🆕
+
+**Goal**: Every article card and reader header shows a tappable source name that opens a filtered source feed view showing only articles from that source. A dedicated Sources page in the sidebar lists all active sources.
+
+**Independent Test**: Tap the source chip on any article card → filtered article list for that source appears sorted newest-first with back navigation. Open Sources page from sidebar → all active sources listed → tap any → same filtered view.
+
+- [X] T072 [US5] Implement articles::list_by_source IPC command — `source_id` parameter, newest-first `ORDER BY publish_date DESC`, pagination via `limit`/`offset`, convenience `source_name` in response per contracts/articles.md in src-tauri/src/commands/articles.rs
+- [X] T073 [P] [US5] Add `listBySource` wrapper function to src/services/articleService.ts
+- [X] T074 [P] [US5] Implement SourcesView.tsx — calls `feedService.listSources()`, renders a card per active source with name and tap-to-navigate to `/sources/:id` in src/components/Sources/SourcesView.tsx
+- [X] T075 [US5] Implement SourceFeedView.tsx — reads `source_id` from route param, calls `articleService.listBySource()`, renders `ArticleCard` list newest-first with scroll pagination and a back-navigation control in src/components/Sources/SourceFeedView.tsx
+- [X] T076 [US5] Update ArticleCard.tsx source chip to render as `<Link to={\`/sources/${article.source_id}\`}>` using React Router in src/components/Dashboard/ArticleCard.tsx
+- [X] T077 [US5] Update ReaderView.tsx article header — wrap source name in `<Link to={\`/sources/${article.source_id}\`}>` in src/components/Reader/ReaderView.tsx
+- [X] T078 [US5] Register `/sources` and `/sources/:id` routes in src/App.tsx; add Sources navigation entry (icon + label) to Sidebar.tsx in src/components/Layout/Sidebar.tsx
+
+**Checkpoint**: All article cards show tappable source chip. Tapping navigates to filtered source feed. Sources page accessible from sidebar. Back navigation returns to previous context.
+
+---
+
+### US6 Revision — Settings IPC Update (FR-032, FR-038 revised)
+
+- [X] T079 [US6] Update settings::update IPC — handle `background_refresh_threshold_hours`, `article_cache_size_limit_gb`, `reader_font_size` fields; remove `INVALID_INTERVAL` error; add `INVALID_THRESHOLD` (< 1), `INVALID_CACHE_LIMIT` (< 1), `INVALID_FONT_SIZE` (outside 12–28) errors per updated contracts/settings.md in src-tauri/src/commands/settings.rs
+- [X] T080 [P] [US6] Update settingsService.ts to use revised `AppSettings` type and new `UpdateParams` fields in src/services/settingsService.ts
+
+**Checkpoint**: Settings IPC correctly validates and persists all new fields. Updating threshold takes effect on next focus event.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -172,6 +232,11 @@
   - US3 (P3): Can start after Foundational — requires FTS5 triggers (created in migration) and articles in DB (populated by US1)
   - US4 (P4): Can start after Foundational — integrates into ReaderView (US2), so US2 should complete first
 - **Polish (Phase 7)**: Depends on all user stories being complete
+- **Phase 8 (Revision)**: T060–T063 (data model updates) must complete first — BLOCKS all Phase 8 story tasks
+  - T064 (US1 refresh revision): Can start after T060–T063
+  - T065–T071 (US2 cache + accessibility): Can start after T060–T063; T068–T071 only depend on T063
+  - T072–T078 (US5 source browsing): T072 depends on T060–T061; T073–T080 can start after T063
+  - T079–T080 (US6 settings revision): Can start after T062–T063
 
 ### User Story Dependencies
 
@@ -179,6 +244,7 @@
 - **User Story 2 (P2)**: Can start after Foundational — Independent of US1 structurally, but needs articles in DB to test (US1 populates them)
 - **User Story 3 (P3)**: Can start after Foundational — Needs articles in DB and FTS5 index populated (US1 feeds create articles, triggers populate FTS)
 - **User Story 4 (P4)**: Depends on US2 — KQL panel integrates into ReaderView (T054)
+- **User Story 5 (P5 — new)**: Depends on T060–T063 (data model updates); T075 depends on T072 (IPC command); T076–T077 depend on T063 (type update)
 
 ### Recommended Execution Order
 
@@ -195,6 +261,12 @@ Phase 5 (US3 — Search)  ←─── can run in parallel with US4 if US2 is do
 Phase 6 (US4 — KQL)     ←─┘
     ↓
 Phase 7 (Polish)
+    ↓
+Phase 8 — Data model updates (T060–T063) first
+    ├── US1 revision (T064)
+    ├── US2 revision (T065–T071)
+    ├── US5 source browsing (T072–T078)
+    └── US6 settings revision (T079–T080)
 ```
 
 ### Within Each User Story
@@ -217,6 +289,12 @@ Phase 7 (Polish)
 **US3**: T045, T046 can run in parallel (independent components)
 
 **US4**: T051 can run in parallel with other [P]-marked tasks
+
+**Phase 8 data model**: T061, T062, T063 can run in parallel (independent files) after T060
+
+**Phase 8 US2 revision**: T068 (FontSizeControl) can run in parallel with T065–T066; T067 is independent frontend change
+
+**Phase 8 US5**: T073, T074 can run in parallel after T072 completes; T076, T077 can run in parallel after T063
 
 ---
 
@@ -284,6 +362,9 @@ Since this is a personal-use project:
 - Each user story is independently completable and testable at its checkpoint
 - Constitution II compliance: KQL generation (T050, T052) MUST validate `user_confirmed == true` and show confirmation dialog
 - Constitution IV compliance: API key MUST only be stored via keychain service (T012), never in plaintext
+- Phase 8 prerequisite: T060–T063 (migration + model + type updates) MUST complete before any Phase 8 story task
+- US5 source browsing (T072–T078) is a new user story added in the 2026-03-01 spec revision
+- Back-navigation MUST NOT trigger feed refresh (FR-006 revised) — only `WindowEvent::Focused` elapsed-time check triggers it
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - No test tasks included — add them later if TDD approach is desired
