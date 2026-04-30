@@ -133,6 +133,18 @@ This project follows a [constitution](.specify/memory/constitution.md) with four
 4. **Secret Security** *(non-negotiable)* — All secrets in OS keychain only, never in plaintext files or logs
 
 ---
+## App Experience
+# Dashboard
+<img width="1724" height="987" alt="image" src="https://github.com/user-attachments/assets/d26d5165-75c6-4a1a-9e06-77d11c626a72" />
+
+# Browse by Source
+<img width="1717" height="991" alt="image" src="https://github.com/user-attachments/assets/85ef1e97-76fc-4c81-a25c-c84b5cf61328" />
+
+# Article View
+<img width="1718" height="993" alt="image" src="https://github.com/user-attachments/assets/ba7a7d97-ba46-4edb-aa52-17ddb686a042" />
+
+# KQL Generator
+<img width="1724" height="997" alt="image" src="https://github.com/user-attachments/assets/279cf488-fcb9-4a30-8e63-58071ba7076f" />
 
 ## License
 
