@@ -13,6 +13,11 @@ import type { ArticleSummary } from "@/services/articleService";
  * regardless of how many times DashboardView mounts (e.g. navigating away and back).
  */
 let sessionRefreshDone = false;
+const DASHBOARD_RESTORE_KEY = "dashboard:restore";
+
+function getScrollContainer(): HTMLElement | null {
+  return document.getElementById("app-scroll-container");
+}
 
 export function DashboardView() {
   const navigate = useNavigate();
@@ -73,7 +78,63 @@ export function DashboardView() {
     }
   }, []);
 
+  useEffect(() => {
+    const raw = sessionStorage.getItem(DASHBOARD_RESTORE_KEY);
+    if (!raw) return;
+
+    let restoreData: { articleId?: number; scrollTop?: number } | null = null;
+    try {
+      restoreData = JSON.parse(raw);
+    } catch {
+      sessionStorage.removeItem(DASHBOARD_RESTORE_KEY);
+      return;
+    }
+
+    if (!restoreData) {
+      sessionStorage.removeItem(DASHBOARD_RESTORE_KEY);
+      return;
+    }
+
+    const { articleId, scrollTop } = restoreData;
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    const timer = window.setInterval(() => {
+      attempts += 1;
+
+      if (articleId != null) {
+        const target = document.querySelector<HTMLElement>(
+          `[data-article-id=\"${articleId}\"]`
+        );
+        if (target) {
+          target.scrollIntoView({ block: "center", behavior: "auto" });
+          window.clearInterval(timer);
+          sessionStorage.removeItem(DASHBOARD_RESTORE_KEY);
+          return;
+        }
+      }
+
+      if (attempts >= maxAttempts) {
+        const container = getScrollContainer();
+        if (container && typeof scrollTop === "number") {
+          container.scrollTop = scrollTop;
+        }
+        window.clearInterval(timer);
+        sessionStorage.removeItem(DASHBOARD_RESTORE_KEY);
+      }
+    }, 100);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const handleArticleClick = (article: ArticleSummary) => {
+    const container = getScrollContainer();
+    sessionStorage.setItem(
+      DASHBOARD_RESTORE_KEY,
+      JSON.stringify({ articleId: article.id, scrollTop: container?.scrollTop ?? 0 })
+    );
     navigate(`/article/${article.id}`);
   };
 

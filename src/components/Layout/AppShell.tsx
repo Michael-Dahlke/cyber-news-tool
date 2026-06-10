@@ -10,7 +10,7 @@ export function AppShell() {
     <ThemeContext.Provider value={themeValue}>
       <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto">
+        <main id="app-scroll-container" className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
       </div>

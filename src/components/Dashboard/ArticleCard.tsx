@@ -56,6 +56,7 @@ export function ArticleCard({ article, onClick }: ArticleCardProps) {
   return (
     <button
       type="button"
+      data-article-id={article.id}
       onClick={() => onClick?.(article)}
       className={cn(
         "group flex w-full flex-col gap-2 rounded-lg border border-border bg-card p-4 text-left transition-colors",
