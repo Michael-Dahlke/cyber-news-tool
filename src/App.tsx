@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "@/components/Layout/AppShell";
 import { ErrorBoundary } from "@/components/Layout/ErrorBoundary";
 import { DashboardView } from "@/components/Dashboard/DashboardView";
+import { MSRCView } from "@/components/Dashboard/MSRCView";
 import { ReaderView } from "@/components/Reader/ReaderView";
 import { SearchResults } from "@/components/Search/SearchResults";
 import { SettingsView } from "@/components/Settings/SettingsView";
@@ -15,6 +16,7 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<DashboardView />} />
+            <Route path="/msrc" element={<MSRCView />} />
             <Route path="/article/:articleId" element={<ReaderView />} />
             <Route path="/sources" element={<SourcesView />} />
             <Route path="/sources/:sourceId" element={<SourceFeedView />} />

@@ -15,6 +15,8 @@ interface NewsSectionProps {
   todayOnly?: boolean;
   /** When true, excludes today's articles from the category query */
   excludeToday?: boolean;
+  /** Max number of articles to fetch (defaults to 50 for categories). */
+  limit?: number;
   lastUpdated?: string | null;
   onArticleClick?: (article: ArticleSummary) => void;
 }
@@ -25,6 +27,7 @@ export function NewsSection({
   daysBack = 7,
   todayOnly = false,
   excludeToday = false,
+  limit = 50,
   lastUpdated,
   onArticleClick,
 }: NewsSectionProps) {
@@ -45,7 +48,7 @@ export function NewsSection({
         const response = await listByCategory({
           category,
           days_back: daysBack,
-          limit: 50,
+          limit,
           exclude_today: excludeToday,
         });
         setArticles(response.articles);
@@ -56,7 +59,7 @@ export function NewsSection({
     } finally {
       setIsLoading(false);
     }
-  }, [category, daysBack, todayOnly, excludeToday]);
+  }, [category, daysBack, todayOnly, excludeToday, limit]);
 
   useEffect(() => {
     fetchArticles();

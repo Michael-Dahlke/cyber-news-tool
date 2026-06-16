@@ -63,7 +63,7 @@ const DEFAULT_SOURCES: &[DefaultSource] = &[
         name: "Microsoft Security Response Center",
         feed_url: "https://msrc.microsoft.com/blog/feed/",
         feed_type: "rss",
-        default_tag: "microsoft",
+        default_tag: "msrc",
     },
     // Threat Intelligence
     DefaultSource {

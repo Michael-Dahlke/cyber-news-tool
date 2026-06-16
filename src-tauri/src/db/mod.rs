@@ -75,6 +75,38 @@ impl Database {
             log::info!("Applied migration: 002_add_body_size_bytes");
         }
 
+        // Migration 003: Move MSRC feed into its own "msrc" category
+        let already_applied_003: bool = conn
+            .prepare("SELECT COUNT(*) FROM _migrations WHERE name = ?1")?
+            .query_row(["003_msrc_category"], |row| row.get::<_, i64>(0))
+            .map(|count| count > 0)?;
+
+        if !already_applied_003 {
+            let migration_sql = include_str!("migrations/003_msrc_category.sql");
+            conn.execute_batch(migration_sql)?;
+            conn.execute(
+                "INSERT INTO _migrations (name) VALUES (?1)",
+                ["003_msrc_category"],
+            )?;
+            log::info!("Applied migration: 003_msrc_category");
+        }
+
+        // Migration 004: Catch all MSRC sources (e.g. the Security Update Guide CVE feed)
+        let already_applied_004: bool = conn
+            .prepare("SELECT COUNT(*) FROM _migrations WHERE name = ?1")?
+            .query_row(["004_msrc_catch_all"], |row| row.get::<_, i64>(0))
+            .map(|count| count > 0)?;
+
+        if !already_applied_004 {
+            let migration_sql = include_str!("migrations/004_msrc_catch_all.sql");
+            conn.execute_batch(migration_sql)?;
+            conn.execute(
+                "INSERT INTO _migrations (name) VALUES (?1)",
+                ["004_msrc_catch_all"],
+            )?;
+            log::info!("Applied migration: 004_msrc_catch_all");
+        }
+
         Ok(())
     }
 }

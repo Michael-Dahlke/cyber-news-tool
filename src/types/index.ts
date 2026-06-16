@@ -33,7 +33,7 @@ export interface AppInfo {
 
 export type FeedType = "rss" | "atom" | "json";
 
-export type ArticleCategory = "general" | "microsoft" | "threat_intel";
+export type ArticleCategory = "general" | "microsoft" | "threat_intel" | "msrc";
 
 export interface NewsSource {
   id: number;

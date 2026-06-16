@@ -133,7 +133,7 @@ pub fn articles_list_today(
     let offset = params.offset.unwrap_or(0);
 
     let total_count: i64 = conn
-        .prepare("SELECT COUNT(*) FROM articles a WHERE date(a.publish_date) = date('now')")
+        .prepare("SELECT COUNT(*) FROM articles a WHERE date(a.publish_date) = date('now') AND a.category != 'msrc'")
         .map_err(|e| format!("DB error: {e}"))?
         .query_row([], |row| row.get(0))
         .map_err(|e| format!("DB error: {e}"))?;
@@ -143,7 +143,7 @@ pub fn articles_list_today(
             "SELECT a.id, a.title, a.url, ns.name as source_name, a.publish_date, a.category, a.is_cached
              FROM articles a
              JOIN news_sources ns ON a.source_id = ns.id
-             WHERE date(a.publish_date) = date('now')
+             WHERE date(a.publish_date) = date('now') AND a.category != 'msrc'
              ORDER BY a.publish_date DESC
              LIMIT ?1 OFFSET ?2",
         )

@@ -25,6 +25,7 @@ pub enum ArticleCategory {
     General,
     Microsoft,
     ThreatIntel,
+    Msrc,
 }
 
 impl ArticleCategory {
@@ -33,6 +34,7 @@ impl ArticleCategory {
             ArticleCategory::General => "general",
             ArticleCategory::Microsoft => "microsoft",
             ArticleCategory::ThreatIntel => "threat_intel",
+            ArticleCategory::Msrc => "msrc",
         }
     }
 
@@ -40,6 +42,7 @@ impl ArticleCategory {
         match s {
             "microsoft" => ArticleCategory::Microsoft,
             "threat_intel" => ArticleCategory::ThreatIntel,
+            "msrc" => ArticleCategory::Msrc,
             _ => ArticleCategory::General,
         }
     }

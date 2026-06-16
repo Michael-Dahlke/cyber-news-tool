@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Search, Settings, Rss } from "lucide-react";
+import { LayoutDashboard, Search, Settings, Rss, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/msrc", label: "MSRC / CVEs", icon: ShieldAlert },
   { to: "/sources", label: "Sources", icon: Rss },
   { to: "/search", label: "Search", icon: Search },
   { to: "/settings", label: "Settings", icon: Settings },
