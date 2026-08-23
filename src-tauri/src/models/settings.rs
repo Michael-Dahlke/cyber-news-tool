@@ -20,6 +20,7 @@ pub enum Theme {
     Dark,
 }
 
+#[allow(dead_code)]
 impl Theme {
     pub fn as_str(&self) -> &'static str {
         match self {

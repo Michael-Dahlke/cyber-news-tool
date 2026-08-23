@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Article {
     pub id: i64,
@@ -48,6 +49,7 @@ impl ArticleCategory {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ExtractionMethod {
@@ -57,6 +59,7 @@ pub enum ExtractionMethod {
     Failed,
 }
 
+#[allow(dead_code)]
 impl ExtractionMethod {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -79,6 +82,7 @@ impl ExtractionMethod {
 }
 
 /// Helper to parse an Article from a rusqlite Row.
+#[allow(dead_code)]
 impl Article {
     pub fn from_row(row: &rusqlite::Row) -> rusqlite::Result<Self> {
         let image_urls_json: Option<String> = row.get("image_urls")?;

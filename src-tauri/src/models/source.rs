@@ -14,6 +14,7 @@ pub struct NewsSource {
     pub updated_at: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FeedType {
@@ -22,6 +23,7 @@ pub enum FeedType {
     Json,
 }
 
+#[allow(dead_code)]
 impl FeedType {
     pub fn as_str(&self) -> &'static str {
         match self {

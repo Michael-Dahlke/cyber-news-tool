@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 pub struct ListSourcesResponse {
     pub sources: Vec<NewsSource>,

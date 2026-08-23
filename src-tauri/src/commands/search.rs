@@ -14,6 +14,7 @@ pub fn search_query(
     search_service::search_articles(&conn, &params)
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct SuggestParams {
     pub prefix: String,
