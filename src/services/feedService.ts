@@ -18,10 +18,22 @@ export interface RefreshResponse {
   errors: FeedError[];
 }
 
+export interface SourceSmokeTestResult {
+  source_id: number;
+  source_name: string;
+  feed_url: string;
+  ok: boolean;
+  error?: string;
+}
+
 // ─── Feeds Commands ───────────────────────────────────────
 
 export async function listSources(): Promise<NewsSource[]> {
   return invoke<NewsSource[]>("feeds_list_sources");
+}
+
+export async function smokeTestFeeds(): Promise<SourceSmokeTestResult[]> {
+  return invoke<SourceSmokeTestResult[]>("feeds_smoke_test_sources");
 }
 
 export async function addSource(params: {

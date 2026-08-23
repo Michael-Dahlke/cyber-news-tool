@@ -11,6 +11,15 @@ pub struct ListSourcesResponse {
     pub sources: Vec<NewsSource>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct SourceSmokeTestResult {
+    pub source_id: i64,
+    pub source_name: String,
+    pub feed_url: String,
+    pub ok: bool,
+    pub error: Option<String>,
+}
+
 /// List all configured news sources.
 #[tauri::command]
 pub fn feeds_list_sources(db: State<'_, Arc<Database>>) -> Result<Vec<NewsSource>, String> {
@@ -30,6 +39,52 @@ pub fn feeds_list_sources(db: State<'_, Arc<Database>>) -> Result<Vec<NewsSource
         .collect();
 
     Ok(sources)
+}
+
+#[tauri::command]
+pub async fn feeds_smoke_test_sources(
+    db: State<'_, Arc<Database>>,
+) -> Result<Vec<SourceSmokeTestResult>, String> {
+    let sources: Vec<NewsSource> = {
+        let conn = db.conn.lock().map_err(|e| format!("DB lock error: {e}"))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, name, feed_url, feed_type, default_tag, is_default, is_active, created_at, updated_at
+                 FROM news_sources WHERE is_active = 1",
+            )
+            .map_err(|e| format!("DB error: {e}"))?;
+
+        let rows = stmt
+            .query_map([], |row| NewsSource::from_row(row))
+            .map_err(|e| format!("DB error: {e}"))?;
+
+        rows.filter_map(|r| r.ok()).collect()
+    };
+
+    let mut results = Vec::with_capacity(sources.len());
+
+    for source in sources {
+        let status = feed_service::validate_feed_url(&source.feed_url).await;
+        let result = match status {
+            Ok(_) => SourceSmokeTestResult {
+                source_id: source.id,
+                source_name: source.name,
+                feed_url: source.feed_url,
+                ok: true,
+                error: None,
+            },
+            Err(err) => SourceSmokeTestResult {
+                source_id: source.id,
+                source_name: source.name,
+                feed_url: source.feed_url,
+                ok: false,
+                error: Some(err),
+            },
+        };
+        results.push(result);
+    }
+
+    Ok(results)
 }
 
 #[derive(Debug, Deserialize)]

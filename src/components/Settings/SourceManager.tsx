@@ -25,6 +25,8 @@ export function SourceManager() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [addSuccess, setAddSuccess] = useState(false);
+  const [smokeTesting, setSmokeTesting] = useState(false);
+  const [smokeSummary, setSmokeSummary] = useState<string | null>(null);
 
   const fetchSources = useCallback(async () => {
     setLoading(true);
@@ -87,6 +89,27 @@ export function SourceManager() {
     }
   };
 
+  const handleSmokeTest = async () => {
+    setSmokeTesting(true);
+    setSmokeSummary(null);
+    try {
+      const results = await feedService.smokeTestFeeds();
+      const liveCount = results.filter((r) => r.ok).length;
+      const failed = results.filter((r) => !r.ok);
+
+      if (failed.length === 0) {
+        setSmokeSummary(`All ${liveCount} active feeds are responding successfully.`);
+      } else {
+        const failedNames = failed.map((r) => r.source_name).join(", ");
+        setSmokeSummary(`${liveCount} active feeds are live; failing: ${failedNames}`);
+      }
+    } catch (err) {
+      setSmokeSummary(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSmokeTesting(false);
+    }
+  };
+
   const handleToggleActive = async (source: NewsSource) => {
     try {
       await feedService.updateSource({
@@ -131,18 +154,39 @@ export function SourceManager() {
         <h3 className="text-base font-semibold text-foreground">
           News Sources
         </h3>
-        <button
-          type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            "bg-primary text-primary-foreground hover:bg-primary/90"
-          )}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Source
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSmokeTest}
+            disabled={smokeTesting}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "bg-muted text-foreground hover:bg-muted/80",
+              "disabled:pointer-events-none disabled:opacity-50"
+            )}
+          >
+            {smokeTesting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {smokeTesting ? "Checking..." : "Check Feeds"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddForm(!showAddForm)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+              "bg-primary text-primary-foreground hover:bg-primary/90"
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Source
+          </button>
+        </div>
       </div>
+
+      {smokeSummary && (
+        <div className="rounded-md border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+          {smokeSummary}
+        </div>
+      )}
 
       {/* Success message */}
       {addSuccess && (

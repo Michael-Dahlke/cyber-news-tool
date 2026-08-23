@@ -157,6 +157,7 @@ pub fn run() {
             commands::settings::settings_clear_api_key,
             commands::settings::settings_get_app_info,
             commands::feeds::feeds_list_sources,
+            commands::feeds::feeds_smoke_test_sources,
             commands::feeds::feeds_add_source,
             commands::feeds::feeds_update_source,
             commands::feeds::feeds_remove_source,
