@@ -2,13 +2,13 @@
 
 **Feature Branch**: `001-news-reader-dashboard`  
 **Created**: 2026-02-28  
-**Status**: Draft  
+**Status**: Implemented
 **Input**: User description: "One-stop cybersecurity news and CTI app with dashboard, in-app reader, keyword search, and AI-powered KQL generator — macOS and Windows"
 
 ## Assumptions
 
 - News is aggregated from publicly available RSS/Atom feeds and open APIs; no paywalled sources are included.
-- All three dashboard sections are populated from the same aggregated source pool. Each NewsSource carries a default category tag (General, Microsoft, Threat Intelligence). Articles inherit their source's category tag; keyword matching on title and body can additionally assign or override the category for articles from General-tagged sources.
+- The dashboard includes Today's News, Microsoft News, Threat Intelligence, and General sections populated from the same aggregated source pool. MSRC/CVE advisories are presented in a dedicated view. Each NewsSource carries a default category tag (General, Microsoft, Threat Intelligence, or MSRC). Articles inherit their source's category tag; keyword matching on title and body can additionally assign or override the category for articles from General-tagged sources.
 - The KQL generator sends article text to an external LLM service configured by the user; the app does not bundle an AI model.
 - KQL queries are intended for use in Microsoft Sentinel and Microsoft Defender XDR.
 - The app is a single-user desktop application; no accounts or authentication are required.
@@ -38,17 +38,17 @@
 
 ### User Story 1 - Categorized News Dashboard (Priority: P1)
 
-A user opens the app and immediately sees three curated sections on the dashboard:
+A user opens the app and immediately sees four curated sections on the dashboard:
 **Today's Cybersecurity News** (articles published today), **Microsoft Security News** (Microsoft-related
 articles from the past 7 days), and **Threat Intelligence** (articles covering threat actor groups and TTPs
-from the past 7 days). Each section shows article headlines, source name, and publish date. The user can
+from the past 7 days), plus General cybersecurity news. Each section shows article headlines, source name, and publish date. The user can
 scroll each section independently and click any headline to open the article.
 
 **Why this priority**: This is the core value proposition — a single pane of glass for daily security news
 awareness. Without this, the app has no reason to exist.
 
 **Independent Test**: Can be fully tested by launching the app with a working internet connection and
-verifying that all three sections display articles with correct date filtering. Delivers immediate,
+verifying that all four sections display articles with correct date filtering. Delivers immediate,
 standalone value as a news aggregator dashboard.
 
 **Acceptance Scenarios**:
@@ -159,7 +159,7 @@ content are returned and displayed.
 
 #### Dashboard
 
-- **FR-001**: The app MUST display a dashboard with three named sections: "Today's News," "Microsoft News," and "Threat Intelligence."
+- **FR-001**: The app MUST display a dashboard with four named sections: "Today's News," "Microsoft News," "Threat Intelligence," and "General." MSRC/CVE advisories MUST be available in a dedicated view.
 - **FR-002**: "Today's News" MUST display only articles published on the current calendar day.
 - **FR-003**: "Microsoft News" MUST display only articles classified under the Microsoft category from the past 7 days. Classification occurs via: (a) the article's source having a Microsoft category tag, or (b) keyword matching identifying Microsoft products, services, or security advisories in the article title or body.
 - **FR-004**: "Threat Intelligence" MUST display only articles classified under the Threat Intelligence category from the past 7 days. Classification occurs via: (a) the article's source having a Threat Intelligence category tag, or (b) keyword matching identifying named threat actor groups, malware families, or TTPs in the article title or body.

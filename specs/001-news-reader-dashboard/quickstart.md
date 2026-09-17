@@ -28,12 +28,11 @@
 
 ## Project Setup
 
-### 1. Clone and Checkout
+### 1. Clone the Repository
 
 ```bash
-git clone <repo-url> cyber-news
-cd cyber-news
-git checkout 001-news-reader-dashboard
+git clone https://github.com/Michael-Dahlke/cyber-news-tool.git
+cd cyber-news-tool
 ```
 
 ### 2. Install Frontend Dependencies
@@ -92,11 +91,10 @@ cargo build
 
 ## Testing
 
-### Frontend Unit Tests (Vitest)
+### Available Checks
 
 ```bash
-pnpm test              # Run once
-pnpm test --watch      # Watch mode
+pnpm build             # TypeScript check and Vite production build
 ```
 
 ### Rust Unit Tests
@@ -106,19 +104,16 @@ cd src-tauri
 cargo test
 ```
 
-### E2E Tests (Playwright — Primary)
+### Rust Compile Check
 
 ```bash
-pnpm exec playwright install    # First time: install browsers
-pnpm test:e2e                   # Run against Vite dev server
+cd src-tauri
+cargo check
+cd ..
 ```
 
-### Native E2E Tests (WebdriverIO + tauri-driver — Windows/Linux only)
-
-```bash
-cargo install tauri-driver      # First time
-pnpm test:e2e:native           # Runs against built binary
-```
+Frontend unit-test, Playwright, and native WebDriver scripts are not currently
+configured in this repository.
 
 ---
 

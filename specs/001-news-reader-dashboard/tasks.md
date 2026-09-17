@@ -66,9 +66,9 @@
 
 ## Phase 3: User Story 1 — Categorized News Dashboard (Priority: P1) 🎯 MVP
 
-**Goal**: Dashboard with three curated sections (Today's News, Microsoft News, Threat Intelligence) populated from RSS/Atom feeds with auto-refresh and offline support.
+**Goal**: Dashboard with four curated sections (Today's News, Microsoft News, Threat Intelligence, and General) plus a dedicated MSRC/CVE view, populated from RSS/Atom feeds with auto-refresh and offline support.
 
-**Independent Test**: Launch app with internet → all three sections display articles with correct date filtering. Kill internet → cached articles shown with offline indicator.
+**Independent Test**: Launch app with internet → all four dashboard sections display articles with correct date filtering. Open the MSRC/CVE view to verify advisories are available. Kill internet → cached articles shown with offline indicator.
 
 ### Implementation for User Story 1
 
@@ -77,7 +77,7 @@
 - [X] T025 [US1] Implement URL deduplication logic (FR-037) — skip insert when article URL already exists in src-tauri/src/services/feed_service.rs
 - [X] T026 [US1] Implement feeds Tauri commands (list_sources, add_source, update_source, remove_source, refresh) per contracts/feeds.md in src-tauri/src/commands/feeds.rs
 - [X] T027 [US1] Implement articles list_by_category command with date filtering per contracts/articles.md in src-tauri/src/commands/articles.rs
-- [X] T028 [US1] Implement auto-refresh timer (default 60 min) and emit feeds://refresh-progress and feeds://auto-refresh-complete events in src-tauri/src/main.rs
+- [X] T028 [US1] Implement launch/focus auto-refresh using the configurable background threshold and emit feeds://refresh-progress and feeds://auto-refresh-complete events in src-tauri/src/lib.rs
 - [X] T029 [P] [US1] Create ArticleCard component displaying title, source name, publish date, and category badge in src/components/Dashboard/ArticleCard.tsx
 - [X] T030 [P] [US1] Create NewsSection component with section header, last-updated timestamp (FR-007), scrollable article list, and "No articles found" placeholder in src/components/Dashboard/NewsSection.tsx
 - [X] T031 [US1] Create DashboardView component assembling three NewsSection instances (Today days_back=0, Microsoft days_back=7, Threat Intel days_back=7) in src/components/Dashboard/DashboardView.tsx

@@ -13,12 +13,16 @@ A cross-platform desktop application for aggregating cybersecurity news and cybe
 ## Features
 
 ### Categorized News Dashboard
-Three curated sections updated from RSS/Atom feeds:
+Curated sections updated from RSS/Atom feeds:
 - **Today's News** — articles published today across all sources
 - **Microsoft Security News** — Microsoft-related articles from the past 7 days
 - **Threat Intelligence** — threat actor groups, malware families, and TTPs from the past 7 days
+- **General** — general cybersecurity articles from the past 7 days
 
-Auto-refreshes on launch and every 60 minutes. Works offline with cached articles.
+MSRC security advisories and CVEs are available in a dedicated tab. Feeds refresh on
+launch and when the app regains focus after the configured background threshold
+(4 hours by default); a manual refresh is always available. Works offline with
+cached articles.
 
 ### In-App Article Reader
 Click any headline to read the full article inside the app — no browser needed. Content extraction strips ads, navigation, and tracking. Falls back to an embedded WebView for JavaScript-heavy pages.
@@ -112,7 +116,7 @@ src/                           # React frontend
 
 specs/                         # Feature specifications
 └── 001-news-reader-dashboard/
-    ├── spec.md                # Requirements (39 FRs, 4 user stories)
+    ├── spec.md                # Requirements (45 FRs, 4 user stories)
     ├── plan.md                # Architecture & implementation plan
     ├── tasks.md               # 59 tasks across 7 phases
     ├── data-model.md          # SQLite schema & Rust models
