@@ -1,10 +1,10 @@
 # Cyber News Tool
 
-A cross-platform desktop application for aggregating cybersecurity news and cyber threat intelligence into a single dashboard, with an in-app reader, full-text search, and AI-powered KQL query generation for Microsoft Sentinel and Defender XDR.
+A macOS desktop application for aggregating cybersecurity news and cyber threat intelligence into a single dashboard, with an in-app reader, full-text search, and AI-powered KQL query generation for Microsoft Sentinel and Defender XDR.
 
 **Personal-use research tool** — not intended for commercial redistribution.
 
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-blue)
+![Platform](https://img.shields.io/badge/platform-macOS-blue)
 ![Stack](https://img.shields.io/badge/stack-Tauri%20v2%20%7C%20React%20%7C%20Rust-orange)
 ![Status](https://img.shields.io/badge/status-pre--development-yellow)
 
@@ -46,7 +46,7 @@ Generate KQL detection queries from article content using any OpenAI-compatible 
 | Database | SQLite with FTS5 via `rusqlite` |
 | Content Extraction | `readability` + `scraper` (Rust) → Readability.js WebView fallback |
 | Feed Parsing | `feed-rs` (RSS/Atom/JSON) |
-| Secret Storage | OS keychain via `keyring` crate (macOS Keychain / Windows Credential Manager) |
+| Secret Storage | OS keychain via `keyring` crate (macOS Keychain) |
 | LLM Integration | OpenAI-compatible Chat Completions API (user-configured) |
 
 ---
@@ -61,8 +61,6 @@ Generate KQL detection queries from article content using any OpenAI-compatible 
 | Tauri CLI | 2.x | `cargo install tauri-cli --version "^2"` |
 
 **macOS**: Xcode Command Line Tools (`xcode-select --install`)
-
-**Windows**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++" workload, [Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
 
 ---
 
@@ -84,8 +82,7 @@ pnpm tauri dev
 ```
 
 The SQLite database is auto-created on first launch:
-- **macOS**: `~/Library/Application Support/com.cyber-news-reader.app/cyber-news.db`
-- **Windows**: `%APPDATA%\com.cyber-news-reader.app\cyber-news.db`
+- **macOS**: `~/Library/Application Support/com.cyber-news-reader.app/cyber-news-reader.db`
 
 ---
 
