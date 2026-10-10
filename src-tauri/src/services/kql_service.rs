@@ -506,8 +506,8 @@ fn validate_endpoint_security(endpoint: &str) -> Result<(), String> {
     if endpoint.starts_with("https://") {
         return Ok(());
     }
-    if endpoint.starts_with("http://") {
-        let after_scheme = &endpoint[7..]; // skip "http://"
+    if let Some(after_scheme) = endpoint.strip_prefix("http://") {
+        // skip "http://"
         let host = after_scheme.split('/').next().unwrap_or(after_scheme);
         let host_no_port = host.split(':').next().unwrap_or(host);
         if host_no_port == "localhost" || host_no_port == "127.0.0.1" || host_no_port == "[::1]" {
