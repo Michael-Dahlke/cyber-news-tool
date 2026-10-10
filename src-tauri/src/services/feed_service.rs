@@ -281,10 +281,13 @@ pub async fn validate_feed_url(url: &str) -> Result<Option<String>, String> {
     Ok(feed.title.map(|t| t.content))
 }
 
+/// Progress callback invoked as `(current, total, source_name)` per source.
+pub type ProgressCallback = Box<dyn Fn(usize, usize, &str) + Send>;
+
 /// Refresh all active feeds and insert new articles into the database.
 pub async fn refresh_all_feeds(
     db: Arc<Database>,
-    progress_callback: Option<Box<dyn Fn(usize, usize, &str) + Send>>,
+    progress_callback: Option<ProgressCallback>,
 ) -> RefreshResult {
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
@@ -316,7 +319,7 @@ pub async fn refresh_all_feeds(
                  FROM news_sources WHERE is_active = 1",
             ).map_err(|e| format!("Query error: {e}"))?;
 
-            let rows = stmt.query_map([], |row| NewsSource::from_row(row))
+            let rows = stmt.query_map([], NewsSource::from_row)
                 .map_err(|e| format!("Query error: {e}"))?;
             Ok(rows.filter_map(|r| r.ok()).collect())
         })();

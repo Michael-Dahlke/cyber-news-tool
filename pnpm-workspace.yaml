@@ -1,2 +1,6 @@
 allowBuilds:
   esbuild: true
+
+# Supply-chain cooldown: refuse to resolve package versions published less
+# than 7 days ago (value in minutes). Matches the Dependabot cooldown.
+minimumReleaseAge: 10080
