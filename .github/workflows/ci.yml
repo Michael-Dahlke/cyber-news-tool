@@ -1,8 +1,8 @@
 name: CI
 
-# PRs get a fast Linux lint + test job. The slower macOS/Windows builds (billed
-# at 10x/2x Actions minutes) run after merge to main, or on demand via
-# "Run workflow" on any branch.
+# PRs get a fast Linux lint + test job. The slower macOS build (billed at 10x
+# Actions minutes) runs after merge to main, or on demand via "Run workflow"
+# on any branch. macOS is the only supported platform.
 on:
   push:
     branches: [main]
@@ -61,14 +61,10 @@ jobs:
         working-directory: src-tauri
         run: cargo test --locked
 
-  platform-builds:
-    name: Build & test (${{ matrix.os }})
+  macos-build:
+    name: Build & test (macOS)
     if: github.event_name != 'pull_request'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
