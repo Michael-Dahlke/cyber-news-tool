@@ -1,8 +1,11 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: (none) → 1.0.0
-  Modified principles: N/A (initial ratification)
+  Version change: 1.0.0 → 1.0.1 (PATCH)
+  Rationale: Windows dropped as a supported platform; macOS only.
+  Modified principles: Security Requirements, credential store examples
+    now list macOS Keychain only (requirement itself unchanged)
+  Previous: (none) → 1.0.0, initial ratification
   Added sections:
     - Core Principles (4 principles)
     - Security Requirements
@@ -79,7 +82,7 @@ applies to **all** secret material including but not limited to:
 - Any credential or key used to access external services
 
 Secrets MUST be stored exclusively in the operating system's native
-credential store (macOS Keychain / Windows Credential Manager) via the
+credential store (macOS Keychain) via the
 `keyring` crate. Secrets MUST NOT appear in:
 
 - Source code files (`.rs`, `.ts`, `.tsx`, `.json`, `.toml`, etc.)
@@ -154,4 +157,4 @@ feature additions MUST comply with the principles defined above.
   be aware of this constitution. The agent context file
   (`.github/agents/copilot-instructions.md`) MUST reference this document.
 
-**Version**: 1.0.0 | **Ratified**: 2026-02-28 | **Last Amended**: 2026-02-28
+**Version**: 1.0.1 | **Ratified**: 2026-02-28 | **Last Amended**: 2026-10-10
