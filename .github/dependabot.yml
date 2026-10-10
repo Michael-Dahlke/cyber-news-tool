@@ -3,7 +3,8 @@ updates:
   - package-ecosystem: cargo
     directory: /src-tauri
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 3
     # Supply-chain cooldown: only propose versions that have been public long
     # enough for a compromised release to be caught and yanked.
     cooldown:
@@ -16,7 +17,8 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 3
     # Supply-chain cooldown: only propose versions that have been public long
     # enough for a compromised release to be caught and yanked.
     cooldown:
@@ -33,6 +35,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 1
     cooldown:
       default-days: 7
     groups:

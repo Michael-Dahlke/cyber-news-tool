@@ -1,12 +1,15 @@
 name: CI
 
-# PRs get a fast Linux lint + test job. The slower macOS build (billed at 10x
-# Actions minutes) runs after merge to main, or on demand via "Run workflow"
+# PRs and pushes to main get a fast Linux lint + test job. The macOS build
+# (billed at 10x Actions minutes) runs weekly and on demand via "Run workflow"
 # on any branch. macOS is the only supported platform.
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    # Weekly macOS safety-net build (Mondays 14:00 UTC).
+    - cron: "0 14 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -63,7 +66,7 @@ jobs:
 
   macos-build:
     name: Build & test (macOS)
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
