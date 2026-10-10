@@ -2,7 +2,7 @@
 
 A macOS desktop application for aggregating cybersecurity news and cyber threat intelligence into a single dashboard, with an in-app reader, full-text search, and AI-powered KQL query generation for Microsoft Sentinel and Defender XDR.
 
-**Personal-use research tool** — not intended for commercial redistribution.
+**Personal-use research tool**, built for my own cybersecurity research and shared as-is under the [MIT License](LICENSE).
 
 ![Platform](https://img.shields.io/badge/platform-macOS-blue)
 ![Stack](https://img.shields.io/badge/stack-Tauri%20v2%20%7C%20React%20%7C%20Rust-orange)
@@ -218,6 +218,12 @@ Additional safeguards in the code:
 
 ### KQL Generator
 <img width="1724" height="997" alt="image" src="https://github.com/user-attachments/assets/279cf488-fcb9-4a30-8e63-58071ba7076f" />
+
+---
+
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md). Please don't open public issues for security problems.
 
 ---
 
