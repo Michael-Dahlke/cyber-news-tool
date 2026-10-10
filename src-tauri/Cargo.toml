@@ -30,7 +30,9 @@ rusqlite = { version = "0.38", features = ["bundled"] }
 feed-rs = "2"
 
 # Content extraction
-readability = "0.3"
+# default-features = false drops readability's own reqwest 0.11 stack (and
+# its h2 0.3 / native-tls deps); pages are fetched with our reqwest instead.
+readability = { version = "0.3", default-features = false }
 scraper = "0.27"
 ammonia = "4"
 
