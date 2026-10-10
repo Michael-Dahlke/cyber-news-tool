@@ -500,21 +500,85 @@ fn mask_endpoint(endpoint: &str) -> String {
     }
 }
 
-/// Security: Require HTTPS for LLM endpoints unless localhost/127.0.0.1 (T058).
-/// Localhost is exempt to support local models (Ollama, LM Studio, etc.).
+/// Security: Require HTTPS for LLM endpoints unless loopback (T058).
+/// Loopback is exempt to support local models (Ollama, LM Studio, etc.).
+/// The URL is parsed with the same parser reqwest uses, so the host checked here
+/// is the host actually connected to (userinfo tricks like `http://localhost:x@evil.com`
+/// cannot spoof it).
 fn validate_endpoint_security(endpoint: &str) -> Result<(), String> {
-    if endpoint.starts_with("https://") {
-        return Ok(());
+    const UNKNOWN_SCHEME: &str =
+        "INSECURE_ENDPOINT: LLM endpoint must start with https:// (or http://localhost for local models)";
+    const NON_LOCAL_HTTP: &str = "INSECURE_ENDPOINT: LLM endpoint must use HTTPS for non-localhost URLs";
+
+    let url = reqwest::Url::parse(endpoint).map_err(|_| UNKNOWN_SCHEME.to_string())?;
+
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err("INSECURE_ENDPOINT: LLM endpoint must not contain credentials in the URL".to_string());
     }
-    if endpoint.starts_with("http://") {
-        let after_scheme = &endpoint[7..]; // skip "http://"
-        let host = after_scheme.split('/').next().unwrap_or(after_scheme);
-        let host_no_port = host.split(':').next().unwrap_or(host);
-        if host_no_port == "localhost" || host_no_port == "127.0.0.1" || host_no_port == "[::1]" {
-            return Ok(());
+
+    match url.scheme() {
+        "https" => Ok(()),
+        "http" => {
+            // host_str() is normalized by the parser: lowercased domain, canonical
+            // IPv4, and bracketed IPv6 (e.g. "[::1]").
+            let is_loopback = match url.host_str() {
+                Some("localhost") => true,
+                Some(h) => h
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .parse::<std::net::IpAddr>()
+                    .is_ok_and(|ip| ip.is_loopback()),
+                None => false,
+            };
+            if is_loopback {
+                Ok(())
+            } else {
+                Err(NON_LOCAL_HTTP.to_string())
+            }
         }
-        return Err("INSECURE_ENDPOINT: LLM endpoint must use HTTPS for non-localhost URLs".to_string());
+        _ => Err(UNKNOWN_SCHEME.to_string()),
     }
-    // Unknown scheme — reject
-    Err("INSECURE_ENDPOINT: LLM endpoint must start with https:// (or http://localhost for local models)".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_endpoint_security;
+
+    #[test]
+    fn accepts_https() {
+        assert!(validate_endpoint_security("https://api.openai.com/v1").is_ok());
+    }
+
+    #[test]
+    fn accepts_http_localhost_and_ipv4_loopback() {
+        assert!(validate_endpoint_security("http://localhost:11434").is_ok());
+        assert!(validate_endpoint_security("http://127.0.0.1").is_ok());
+        assert!(validate_endpoint_security("http://127.0.0.1:1234/v1").is_ok());
+    }
+
+    #[test]
+    fn accepts_http_ipv6_loopback() {
+        assert!(validate_endpoint_security("http://[::1]:11434").is_ok());
+        assert!(validate_endpoint_security("http://[::1]").is_ok());
+    }
+
+    #[test]
+    fn rejects_http_non_local() {
+        let err = validate_endpoint_security("http://example.com").unwrap_err();
+        assert!(err.starts_with("INSECURE_ENDPOINT"));
+    }
+
+    #[test]
+    fn rejects_userinfo_host_spoof() {
+        assert!(validate_endpoint_security("http://localhost:x@evil.com").is_err());
+        assert!(validate_endpoint_security("http://localhost:x@evil.com/v1").is_err());
+        assert!(validate_endpoint_security("https://user:pass@api.example.com").is_err());
+    }
+
+    #[test]
+    fn rejects_other_schemes_and_garbage() {
+        let err = validate_endpoint_security("ftp://localhost/v1").unwrap_err();
+        assert!(err.starts_with("INSECURE_ENDPOINT"));
+        assert!(validate_endpoint_security("not a url").is_err());
+    }
 }
