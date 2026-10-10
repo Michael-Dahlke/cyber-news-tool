@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Example Security Blog</title>
+    <link>https://example.com/</link>
+    <description>Fixture feed for unit tests</description>
+    <item>
+      <title>New ransomware strain targets hospitals</title>
+      <link>https://example.com/posts/ransomware-hospitals</link>
+      <description>Researchers detail a ransomware family spreading via phishing.</description>
+      <pubDate>Tue, 06 Oct 2026 14:30:00 GMT</pubDate>
+      <media:content url="https://example.com/img/ransomware.jpg" medium="image" />
+    </item>
+    <item>
+      <title>Company announces quarterly earnings</title>
+      <link>https://example.com/posts/earnings</link>
+      <description>Revenue was up year over year.</description>
+      <pubDate>Wed, 07 Oct 2026 09:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Entry with no link is skipped</title>
+      <description>There is no link element here.</description>
+    </item>
+  </channel>
+</rss>

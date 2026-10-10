@@ -29,6 +29,21 @@ pub struct SearchQueryParams {
     pub offset: Option<i64>,
 }
 
+/// Map SQLite errors caused by malformed FTS5 MATCH syntax (unbalanced quotes,
+/// dangling operators, unknown column filters) to INVALID_QUERY so the UI can
+/// show a friendly message; anything else is reported with `context`.
+fn map_fts_error(e: rusqlite::Error, context: &str) -> String {
+    let msg = e.to_string();
+    if msg.contains("fts5: syntax error")
+        || msg.contains("unterminated string")
+        || msg.contains("no such column")
+    {
+        "INVALID_QUERY".to_string()
+    } else {
+        format!("{context}: {e}")
+    }
+}
+
 /// Execute a full-text search across articles using FTS5 with BM25 ranking.
 /// Title is weighted 10x over body_text per FR-021.
 pub fn search_articles(
@@ -85,13 +100,7 @@ pub fn search_articles(
     let total_count: i64 = conn
         .prepare(&count_sql)
         .and_then(|mut stmt| stmt.query_row(count_param_refs.as_slice(), |row| row.get(0)))
-        .map_err(|e| {
-            if e.to_string().contains("fts5: syntax error") {
-                "INVALID_QUERY".to_string()
-            } else {
-                format!("Search error: {e}")
-            }
-        })?;
+        .map_err(|e| map_fts_error(e, "Search error"))?;
 
     // Query with BM25 ranking: title weighted 10.0, body_text weighted 1.0
     // snippet() extracts highlighted excerpts with <mark> delimiters (FR-020)
@@ -139,13 +148,7 @@ pub fn search_articles(
                 relevance_rank: row.get::<_, f64>(6).unwrap_or(0.0),
             })
         })
-        .map_err(|e| {
-            if e.to_string().contains("fts5: syntax error") {
-                "INVALID_QUERY".to_string()
-            } else {
-                format!("Search query error: {e}")
-            }
-        })?
+        .map_err(|e| map_fts_error(e, "Search query error"))?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -156,4 +159,111 @@ pub fn search_articles(
         total_count,
         query_time_ms,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::open_in_memory;
+
+    fn setup() -> Connection {
+        let conn = open_in_memory();
+        conn.execute(
+            "INSERT INTO news_sources (id, name, feed_url) VALUES (1, 'Test Source', 'https://feed.test/rss')",
+            [],
+        )
+        .unwrap();
+        let rows = [
+            (1, "Ransomware gang hits retailer", "Attackers deployed ransomware across stores.", "2026-10-01T00:00:00Z"),
+            (2, "Weekly security roundup", "Mentions of ransomware among other topics.", "2026-10-05T00:00:00Z"),
+            (3, "Cloud pricing update", "Nothing about security here.", "2026-10-06T00:00:00Z"),
+        ];
+        for (id, title, body, date) in rows {
+            conn.execute(
+                "INSERT INTO articles (id, source_id, url, title, body_text, publish_date)
+                 VALUES (?1, 1, ?2, ?3, ?4, ?5)",
+                rusqlite::params![id, format!("https://a.test/{id}"), title, body, date],
+            )
+            .unwrap();
+        }
+        conn
+    }
+
+    fn params(keywords: &str) -> SearchQueryParams {
+        SearchQueryParams {
+            keywords: keywords.to_string(),
+            date_from: None,
+            date_to: None,
+            limit: None,
+            offset: None,
+        }
+    }
+
+    #[test]
+    fn empty_query_is_rejected() {
+        let conn = setup();
+        assert_eq!(search_articles(&conn, &params("   ")).unwrap_err(), "QUERY_TOO_SHORT");
+    }
+
+    #[test]
+    fn title_matches_rank_above_body_matches() {
+        let conn = setup();
+        let response = search_articles(&conn, &params("ransomware")).unwrap();
+
+        assert_eq!(response.total_count, 2);
+        let ids: Vec<i64> = response.results.iter().map(|r| r.article_id).collect();
+        assert_eq!(ids, vec![1, 2]);
+        assert_eq!(response.results[0].source_name, "Test Source");
+    }
+
+    #[test]
+    fn porter_stemming_matches_word_variants() {
+        let conn = setup();
+        let response = search_articles(&conn, &params("attacker")).unwrap();
+        assert_eq!(response.total_count, 1);
+    }
+
+    #[test]
+    fn excerpts_highlight_matches() {
+        let conn = setup();
+        let response = search_articles(&conn, &params("ransomware")).unwrap();
+        assert!(response.results[0].excerpt.contains("<mark>ransomware</mark>"));
+    }
+
+    #[test]
+    fn date_range_filters_results() {
+        let conn = setup();
+        let mut p = params("ransomware");
+        p.date_from = Some("2026-10-03T00:00:00Z".to_string());
+        let response = search_articles(&conn, &p).unwrap();
+
+        assert_eq!(response.total_count, 1);
+        assert_eq!(response.results[0].article_id, 2);
+
+        let mut p = params("ransomware");
+        p.date_to = Some("2026-10-03T00:00:00Z".to_string());
+        let response = search_articles(&conn, &p).unwrap();
+        assert_eq!(response.results[0].article_id, 1);
+    }
+
+    #[test]
+    fn limit_and_offset_paginate() {
+        let conn = setup();
+        let mut p = params("ransomware");
+        p.limit = Some(1);
+        p.offset = Some(1);
+        let response = search_articles(&conn, &p).unwrap();
+
+        assert_eq!(response.total_count, 2);
+        assert_eq!(response.results.len(), 1);
+        assert_eq!(response.results[0].article_id, 2);
+    }
+
+    #[test]
+    fn malformed_fts_syntax_reports_invalid_query() {
+        let conn = setup();
+        for bad in ["\"unterminated", "ransomware AND", "nosuchcol:foo"] {
+            assert_eq!(search_articles(&conn, &params(bad)).unwrap_err(), "INVALID_QUERY", "{bad}");
+        }
+    }
 }

@@ -243,3 +243,79 @@ pub fn sanitize_search_excerpt(excerpt: &str) -> String {
         .clean(excerpt)
         .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_strips_scripts_and_event_handlers() {
+        let dirty = r#"<p onclick="alert(1)">Hello</p><script>alert(2)</script><img src="https://x.test/a.png" onerror="alert(3)">"#;
+        let clean = sanitize_html(dirty);
+
+        assert!(!clean.contains("script"));
+        assert!(!clean.contains("onclick"));
+        assert!(!clean.contains("onerror"));
+        assert!(clean.contains("<p>Hello</p>"));
+        assert!(clean.contains(r#"src="https://x.test/a.png""#));
+    }
+
+    #[test]
+    fn sanitize_removes_dangerous_elements() {
+        let dirty = r#"<iframe src="https://evil.test"></iframe><object data="x"></object><form><input></form><svg><circle/></svg><p>kept</p>"#;
+        let clean = sanitize_html(dirty);
+
+        for tag in ["iframe", "object", "form", "input", "svg"] {
+            assert!(!clean.contains(tag), "{tag} should be stripped: {clean}");
+        }
+        assert!(clean.contains("<p>kept</p>"));
+    }
+
+    #[test]
+    fn sanitize_blocks_javascript_urls_and_hardens_links() {
+        let clean = sanitize_html(r#"<a href="javascript:alert(1)">bad</a><a href="https://ok.test/">good</a>"#);
+
+        assert!(!clean.contains("javascript:"));
+        assert!(clean.contains(r#"href="https://ok.test/""#));
+        assert!(clean.contains(r#"rel="noopener noreferrer""#));
+    }
+
+    #[test]
+    fn sanitize_denies_relative_urls() {
+        let clean = sanitize_html(r#"<a href="/internal">rel</a><img src="../img.png">"#);
+
+        assert!(!clean.contains("/internal"));
+        assert!(!clean.contains("img.png"));
+    }
+
+    #[test]
+    fn sanitize_drops_disallowed_attributes() {
+        let clean = sanitize_html(r#"<div style="background:url(x)" class="c" id="i">t</div>"#);
+        assert_eq!(clean, "<div>t</div>");
+    }
+
+    #[test]
+    fn search_excerpt_keeps_only_mark_tags() {
+        let clean = sanitize_search_excerpt(r#"<mark>ransomware</mark> <b>bold</b> <img src=x onerror=alert(1)>"#);
+        assert_eq!(clean, "<mark>ransomware</mark> bold ");
+    }
+
+    #[test]
+    fn clean_html_removes_script_and_style_blocks() {
+        let cleaned = clean_html("<p>a</p><script>bad()</script><style>p{}</style><p>b</p>");
+        assert_eq!(cleaned, "<p>a</p><p>b</p>");
+    }
+
+    #[test]
+    fn strip_html_tags_collapses_whitespace() {
+        assert_eq!(strip_html_tags("<p>Hello\n   <b>world</b></p>  <p>again</p>"), "Hello world again");
+    }
+
+    #[test]
+    fn image_urls_skip_tracking_pixels() {
+        let urls = extract_image_urls_from_html(
+            r#"<img src="https://x.test/photo.jpg"><img src="https://x.test/pixel.gif"><img src="https://x.test/1x1.png"><img alt="no src">"#,
+        );
+        assert_eq!(urls, vec!["https://x.test/photo.jpg".to_string()]);
+    }
+}
