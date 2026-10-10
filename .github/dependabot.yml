@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+    # Supply-chain cooldown: only propose versions that have been public long
+    # enough for a compromised release to be caught and yanked.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      rust-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Supply-chain cooldown: only propose versions that have been public long
+    # enough for a compromised release to be caught and yanked.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      tauri:
+        patterns: ["@tauri-apps/*"]
+      npm-minor-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["@tauri-apps/*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

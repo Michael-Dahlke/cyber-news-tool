@@ -33,7 +33,7 @@ pub fn feeds_list_sources(db: State<'_, Arc<Database>>) -> Result<Vec<NewsSource
         .map_err(|e| format!("DB error: {e}"))?;
 
     let sources = stmt
-        .query_map([], |row| NewsSource::from_row(row))
+        .query_map([], NewsSource::from_row)
         .map_err(|e| format!("DB error: {e}"))?
         .filter_map(|r| r.ok())
         .collect();
@@ -55,7 +55,7 @@ pub async fn feeds_smoke_test_sources(
             .map_err(|e| format!("DB error: {e}"))?;
 
         let rows = stmt
-            .query_map([], |row| NewsSource::from_row(row))
+            .query_map([], NewsSource::from_row)
             .map_err(|e| format!("DB error: {e}"))?;
 
         rows.filter_map(|r| r.ok()).collect()
@@ -153,7 +153,7 @@ pub async fn feeds_add_source(
     let source = conn
         .prepare("SELECT id, name, feed_url, feed_type, default_tag, is_default, is_active, created_at, updated_at FROM news_sources WHERE id = ?1")
         .map_err(|e| format!("DB error: {e}"))?
-        .query_row([id], |row| NewsSource::from_row(row))
+        .query_row([id], NewsSource::from_row)
         .map_err(|e| format!("DB error: {e}"))?;
 
     Ok(source)
@@ -215,7 +215,7 @@ pub fn feeds_update_source(
     let source = conn
         .prepare("SELECT id, name, feed_url, feed_type, default_tag, is_default, is_active, created_at, updated_at FROM news_sources WHERE id = ?1")
         .map_err(|e| format!("DB error: {e}"))?
-        .query_row([params.id], |row| NewsSource::from_row(row))
+        .query_row([params.id], NewsSource::from_row)
         .map_err(|e| format!("DB error: {e}"))?;
 
     Ok(source)
@@ -277,7 +277,7 @@ pub async fn feeds_refresh(
             )
             .map_err(|e| format!("DB error: {e}"))?;
 
-        let rows = stmt.query_map([], |row| NewsSource::from_row(row))
+        let rows = stmt.query_map([], NewsSource::from_row)
             .map_err(|e| format!("DB error: {e}"))?;
         rows.filter_map(|r| r.ok()).collect()
     };
