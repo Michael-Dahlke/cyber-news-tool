@@ -27,30 +27,58 @@ impl ExtractionMethodUsed {
     }
 }
 
-/// Extract article content. Tries readability first, then scraper fallback.
+/// Extract article content. Fetches the page once, then tries readability
+/// first and the scraper fallback on the same HTML.
 pub async fn extract_content(url: &str) -> Result<ExtractionResult, String> {
+    let html = fetch_html(url).await?;
+
     // Try readability extraction first
-    match extract_via_readability(url).await {
+    match extract_via_readability(url, &html).await {
         Ok(result) if !result.body_html.trim().is_empty() => return Ok(result),
         Ok(_) => log::info!("Readability returned empty content for {url}, trying scraper"),
         Err(e) => log::info!("Readability failed for {url}: {e}, trying scraper"),
     }
 
     // Fallback to scraper-based extraction
-    match extract_via_scraper(url).await {
+    match extract_via_scraper(&html) {
         Ok(result) if !result.body_html.trim().is_empty() => Ok(result),
         Ok(_) => Err("Both extraction methods returned empty content".to_string()),
         Err(e) => Err(format!("All extraction methods failed: {e}")),
     }
 }
 
-/// Primary extraction using the readability crate.
-async fn extract_via_readability(url: &str) -> Result<ExtractionResult, String> {
-    let url_owned = url.to_string();
+/// Fetch the article page with the app's HTTP client (rustls, timeout, UA).
+async fn fetch_html(url: &str) -> Result<String, String> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .user_agent("CyberNewsReader/0.1")
+        .build()
+        .map_err(|e| format!("HTTP client error: {e}"))?;
 
-    // readability::extractor::scrape is blocking, so spawn on blocking thread
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch {url}: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {} for {url}", response.status()));
+    }
+
+    response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read response: {e}"))
+}
+
+/// Primary extraction using the readability crate.
+async fn extract_via_readability(url: &str, html: &str) -> Result<ExtractionResult, String> {
+    let base_url = reqwest::Url::parse(url).map_err(|e| format!("Invalid URL {url}: {e}"))?;
+    let html_owned = html.to_string();
+
+    // Readability parsing is CPU-bound, so run it on a blocking thread
     let product = tokio::task::spawn_blocking(move || {
-        extractor::scrape(&url_owned)
+        extractor::extract(&mut html_owned.as_bytes(), &base_url)
     })
     .await
     .map_err(|e| format!("Readability task failed: {e}"))?
@@ -71,29 +99,8 @@ async fn extract_via_readability(url: &str) -> Result<ExtractionResult, String> 
 }
 
 /// Fallback extraction using scraper with CSS selectors for common article structures.
-async fn extract_via_scraper(url: &str) -> Result<ExtractionResult, String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .user_agent("CyberNewsReader/0.1")
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
-
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch {url}: {e}"))?;
-
-    if !response.status().is_success() {
-        return Err(format!("HTTP {} for {url}", response.status()));
-    }
-
-    let html_text = response
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read response: {e}"))?;
-
-    let document = Html::parse_document(&html_text);
+fn extract_via_scraper(html_text: &str) -> Result<ExtractionResult, String> {
+    let document = Html::parse_document(html_text);
 
     // Try common article content selectors in order of specificity
     let content_selectors = [
@@ -309,6 +316,42 @@ mod tests {
     #[test]
     fn strip_html_tags_collapses_whitespace() {
         assert_eq!(strip_html_tags("<p>Hello\n   <b>world</b></p>  <p>again</p>"), "Hello world again");
+    }
+
+    const ARTICLE_PAGE: &str = r#"<html><head><title>T</title></head><body>
+        <nav><a href="/">Home</a></nav>
+        <article><div class="entry-content">
+          <p>Attackers exploited a zero-day in the VPN appliance to gain initial access to the network.</p>
+          <p>The intrusion lasted several weeks before defenders noticed unusual outbound traffic patterns.</p>
+          <p>Researchers published indicators of compromise and detection guidance for affected customers.</p>
+          <script>steal()</script>
+        </div></article>
+        <footer>Copyright</footer></body></html>"#;
+
+    #[tokio::test]
+    async fn readability_extracts_from_fetched_html() {
+        let result = extract_via_readability("https://news.test/post", ARTICLE_PAGE)
+            .await
+            .expect("readability should extract");
+
+        assert_eq!(result.method, ExtractionMethodUsed::Readability);
+        assert!(result.body_text.contains("zero-day in the VPN appliance"));
+        assert!(!result.body_html.contains("script"));
+    }
+
+    #[test]
+    fn scraper_extracts_article_body() {
+        let result = extract_via_scraper(ARTICLE_PAGE).expect("scraper should extract");
+
+        assert_eq!(result.method, ExtractionMethodUsed::Scraper);
+        assert!(result.body_text.contains("indicators of compromise"));
+        assert!(!result.body_text.contains("Copyright"));
+        assert!(!result.body_html.contains("steal()"));
+    }
+
+    #[test]
+    fn scraper_errors_when_no_article_content() {
+        assert!(extract_via_scraper("<html><body></body></html>").is_err());
     }
 
     #[test]
