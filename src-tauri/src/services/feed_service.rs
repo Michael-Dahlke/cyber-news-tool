@@ -145,6 +145,84 @@ pub fn classify_article(
     ArticleCategory::General
 }
 
+/// Article fields derived from a single feed entry, ready for insertion.
+#[derive(Debug, Clone, PartialEq)]
+struct ParsedArticle {
+    url: String,
+    title: String,
+    body_text: Option<String>,
+    publish_date: String,
+    category: ArticleCategory,
+    image_urls_json: Option<String>,
+}
+
+/// Map a parsed feed entry to article fields. Returns `None` for entries
+/// without a link, since the URL is the deduplication key.
+fn entry_to_article(
+    entry: &feed_rs::model::Entry,
+    source_tag: &ArticleCategory,
+) -> Option<ParsedArticle> {
+    let url = entry
+        .links
+        .first()
+        .map(|l| l.href.clone())
+        .unwrap_or_default();
+
+    if url.is_empty() {
+        return None;
+    }
+
+    let title = entry
+        .title
+        .as_ref()
+        .map(|t| t.content.clone())
+        .unwrap_or_else(|| "Untitled".to_string());
+
+    let body_text = entry
+        .summary
+        .as_ref()
+        .map(|s| s.content.clone())
+        .or_else(|| {
+            entry
+                .content
+                .as_ref()
+                .and_then(|c| c.body.clone())
+        });
+
+    let publish_date = entry
+        .published
+        .or(entry.updated)
+        .map(|dt| dt.to_rfc3339())
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
+
+    let category = classify_article(source_tag, &title, body_text.as_deref());
+
+    // Extract image URLs from media content
+    let image_urls: Vec<String> = entry
+        .media
+        .iter()
+        .flat_map(|m| &m.content)
+        .filter_map(|c| {
+            c.url.as_ref().map(|u| u.to_string())
+        })
+        .collect();
+
+    let image_urls_json = if image_urls.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&image_urls).unwrap_or_default())
+    };
+
+    Some(ParsedArticle {
+        url,
+        title,
+        body_text,
+        publish_date,
+        category,
+        image_urls_json,
+    })
+}
+
 /// Fetch and parse a single feed, returning parsed entries.
 async fn fetch_feed(
     client: &Client,
@@ -279,55 +357,8 @@ pub async fn refresh_all_feeds(
                 let source_tag = source.default_tag.clone();
 
                 for entry in entries {
-                    let url = entry
-                        .links
-                        .first()
-                        .map(|l| l.href.clone())
-                        .unwrap_or_default();
-
-                    if url.is_empty() {
+                    let Some(article) = entry_to_article(&entry, &source_tag) else {
                         continue;
-                    }
-
-                    let title = entry
-                        .title
-                        .as_ref()
-                        .map(|t| t.content.clone())
-                        .unwrap_or_else(|| "Untitled".to_string());
-
-                    let body_text = entry
-                        .summary
-                        .as_ref()
-                        .map(|s| s.content.clone())
-                        .or_else(|| {
-                            entry
-                                .content
-                                .as_ref()
-                                .and_then(|c| c.body.clone())
-                        });
-
-                    let publish_date = entry
-                        .published
-                        .or(entry.updated)
-                        .map(|dt| dt.to_rfc3339())
-                        .unwrap_or_else(|| Utc::now().to_rfc3339());
-
-                    let category = classify_article(&source_tag, &title, body_text.as_deref());
-
-                    // Extract image URLs from media content
-                    let image_urls: Vec<String> = entry
-                        .media
-                        .iter()
-                        .flat_map(|m| &m.content)
-                        .filter_map(|c| {
-                            c.url.as_ref().map(|u| u.to_string())
-                        })
-                        .collect();
-
-                    let image_urls_json = if image_urls.is_empty() {
-                        None
-                    } else {
-                        Some(serde_json::to_string(&image_urls).unwrap_or_default())
                     };
 
                     // Insert with URL deduplication (FR-037)
@@ -341,12 +372,12 @@ pub async fn refresh_all_feeds(
                          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                         rusqlite::params![
                             source.id,
-                            url,
-                            title,
-                            body_text,
-                            publish_date,
-                            category.as_str(),
-                            image_urls_json,
+                            article.url,
+                            article.title,
+                            article.body_text,
+                            article.publish_date,
+                            article.category.as_str(),
+                            article.image_urls_json,
                         ],
                     );
 
@@ -354,7 +385,7 @@ pub async fn refresh_all_feeds(
                         Ok(0) => result.articles_deduplicated += 1,
                         Ok(_) => result.articles_added += 1,
                         Err(e) => {
-                            log::warn!("Failed to insert article {url}: {e}");
+                            log::warn!("Failed to insert article {}: {e}", article.url);
                         }
                     }
                 }
@@ -370,4 +401,106 @@ pub async fn refresh_all_feeds(
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_fixture(bytes: &[u8], tag: ArticleCategory) -> Vec<ParsedArticle> {
+        let feed = parser::parse(bytes).expect("fixture should parse");
+        feed.entries
+            .iter()
+            .filter_map(|e| entry_to_article(e, &tag))
+            .collect()
+    }
+
+    #[test]
+    fn classify_respects_non_general_source_tag() {
+        let category = classify_article(&ArticleCategory::Msrc, "Earnings call recap", None);
+        assert_eq!(category, ArticleCategory::Msrc);
+    }
+
+    #[test]
+    fn classify_microsoft_keyword_wins_over_threat_intel() {
+        let category = classify_article(
+            &ArticleCategory::General,
+            "Ransomware abuses Azure storage",
+            None,
+        );
+        assert_eq!(category, ArticleCategory::Microsoft);
+    }
+
+    #[test]
+    fn classify_strong_threat_intel_keyword() {
+        let category = classify_article(
+            &ArticleCategory::General,
+            "Researchers analyze CVE-2026-12345 exploitation",
+            None,
+        );
+        assert_eq!(category, ArticleCategory::ThreatIntel);
+    }
+
+    #[test]
+    fn classify_requires_two_general_keywords() {
+        let one = classify_article(&ArticleCategory::General, "New vulnerability disclosed", None);
+        assert_eq!(one, ArticleCategory::General);
+
+        let two = classify_article(
+            &ArticleCategory::General,
+            "Vulnerability allows privilege escalation",
+            None,
+        );
+        assert_eq!(two, ArticleCategory::ThreatIntel);
+    }
+
+    #[test]
+    fn classify_only_considers_first_500_body_chars() {
+        let body = format!("{} ransomware", "a".repeat(600));
+        let category = classify_article(&ArticleCategory::General, "Weekly roundup", Some(&body));
+        assert_eq!(category, ArticleCategory::General);
+    }
+
+    #[test]
+    fn rss_entries_map_to_articles() {
+        let articles = parse_fixture(
+            include_bytes!("../../tests/fixtures/sample_rss.xml"),
+            ArticleCategory::General,
+        );
+
+        // The entry without a link is dropped.
+        assert_eq!(articles.len(), 2);
+
+        let first = &articles[0];
+        assert_eq!(first.url, "https://example.com/posts/ransomware-hospitals");
+        assert_eq!(first.title, "New ransomware strain targets hospitals");
+        assert_eq!(first.category, ArticleCategory::ThreatIntel);
+        assert!(first.publish_date.starts_with("2026-10-06T14:30:00"));
+        assert_eq!(
+            first.image_urls_json.as_deref(),
+            Some(r#"["https://example.com/img/ransomware.jpg"]"#)
+        );
+
+        let second = &articles[1];
+        assert_eq!(second.category, ArticleCategory::General);
+        assert_eq!(second.image_urls_json, None);
+    }
+
+    #[test]
+    fn atom_entry_falls_back_to_content_and_updated_date() {
+        let articles = parse_fixture(
+            include_bytes!("../../tests/fixtures/sample_atom.xml"),
+            ArticleCategory::General,
+        );
+
+        assert_eq!(articles.len(), 1);
+        let article = &articles[0];
+        assert_eq!(article.url, "https://example.org/exchange-advisory");
+        assert_eq!(article.category, ArticleCategory::Microsoft);
+        assert!(article.publish_date.starts_with("2026-10-08T12:00:00"));
+        assert!(article
+            .body_text
+            .as_deref()
+            .is_some_and(|b| b.contains("Admins should apply the update.")));
+    }
 }

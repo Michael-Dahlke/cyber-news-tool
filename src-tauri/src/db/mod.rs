@@ -111,6 +111,15 @@ impl Database {
     }
 }
 
+/// Open an in-memory database with all migrations applied, for unit tests.
+#[cfg(test)]
+pub fn open_in_memory() -> Connection {
+    let conn = Connection::open_in_memory().expect("open in-memory db");
+    conn.execute_batch("PRAGMA foreign_keys=ON;").expect("enable foreign keys");
+    Database::run_migrations(&conn).expect("run migrations");
+    conn
+}
+
 /// Get the default database path for the application.
 pub fn get_db_path(app_handle: &tauri::AppHandle) -> PathBuf {
     use tauri::Manager;
@@ -119,4 +128,37 @@ pub fn get_db_path(app_handle: &tauri::AppHandle) -> PathBuf {
         .app_data_dir()
         .expect("Failed to get app data directory");
     app_dir.join("cyber-news-reader.db")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn migrations_apply_cleanly_and_are_idempotent() {
+        let conn = open_in_memory();
+        Database::run_migrations(&conn).expect("re-running migrations should be a no-op");
+
+        let applied: i64 = conn
+            .query_row("SELECT COUNT(*) FROM _migrations", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(applied, 4);
+    }
+
+    #[test]
+    fn migrations_seed_expected_settings() {
+        let conn = open_in_memory();
+        let get = |key: &str| -> Option<String> {
+            conn.query_row(
+                "SELECT value FROM app_settings WHERE key = ?1",
+                [key],
+                |row| row.get(0),
+            )
+            .ok()
+        };
+
+        assert_eq!(get("background_refresh_threshold_hours").as_deref(), Some("4"));
+        assert_eq!(get("article_cache_size_limit_gb").as_deref(), Some("20"));
+        assert_eq!(get("feed_refresh_interval_min"), None);
+    }
 }
