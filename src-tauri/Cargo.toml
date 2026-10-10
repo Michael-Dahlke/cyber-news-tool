@@ -31,7 +31,7 @@ feed-rs = "2"
 
 # Content extraction
 readability = "0.3"
-scraper = "0.22"
+scraper = "0.27"
 ammonia = "4"
 
 # HTTP client
