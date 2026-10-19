@@ -1,14 +1,6 @@
 name: Security audit
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src-tauri/Cargo.toml"
-      - "src-tauri/Cargo.lock"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/security.yml"
   pull_request:
     paths:
       - "src-tauri/Cargo.toml"
@@ -23,6 +15,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   cargo-audit:

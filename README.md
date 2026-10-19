@@ -122,9 +122,14 @@ endpoint validation). Feed fixtures are in `src-tauri/tests/fixtures/`.
 
 | Workflow | Runs | When |
 |----------|------|------|
-| **CI** → Lint & test (Linux) | Frontend build, clippy, tests | Every PR and push to `main` (**required** to merge) |
-| **CI** → Build & test (macOS) | Frontend build, tests on macOS | Weekly, or manually via *Actions → CI → Run workflow* |
-| **Security audit** | `cargo audit`, `pnpm audit --prod` | Dependency changes, plus weekly |
+| **CI** → Lint & test (Linux) | Frontend build, clippy, tests | Every PR (**required** to merge), or manually |
+| **CI** → Build & test (macOS) | Frontend build, tests on macOS | Monthly (first day, 14:00 UTC), or manually via *Actions → CI → Run workflow* |
+| **Security audit** | `cargo audit`, `pnpm audit --prod` | PRs changing dependency manifests, lockfiles, or the audit workflow; weekly; or manually |
+
+Merges to `main` do not trigger duplicate runs; use pull requests for changes.
+Scheduled CI runs only the macOS job. Manual CI runs both jobs. Superseded
+runs on the same ref are canceled in both workflows. CI still runs on docs-only
+PRs so its required check can complete.
 
 `main` is protected by a ruleset: changes go through pull requests, the Linux
 check must pass, and force-pushes and deletion are blocked. Merged branches are

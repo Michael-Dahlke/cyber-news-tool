@@ -1,15 +1,13 @@
 name: CI
 
-# PRs and pushes to main get a fast Linux lint + test job. The macOS build
-# (billed at 10x Actions minutes) runs weekly and on demand via "Run workflow"
-# on any branch. macOS is the only supported platform.
+# PRs get a Linux lint + test job without a duplicate run after merging.
+# The macOS build runs monthly and on demand via "Run workflow" on any
+# branch. macOS is the only supported platform.
 on:
-  push:
-    branches: [main]
   pull_request:
   schedule:
-    # Weekly macOS safety-net build (Mondays 14:00 UTC).
-    - cron: "0 14 * * 1"
+    # Monthly macOS safety-net build (first day at 14:00 UTC).
+    - cron: "0 14 1 * *"
   workflow_dispatch:
 
 permissions:
@@ -22,6 +20,7 @@ concurrency:
 jobs:
   lint-and-test:
     name: Lint & test (Linux)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
