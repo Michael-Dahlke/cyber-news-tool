@@ -53,5 +53,8 @@ coverage/
 test-results/
 playwright-report/
 
+# === Project specs ===
+/specs/
+
 # === Misc ===
 *.log
