@@ -9,8 +9,8 @@ on:
       - "pnpm-lock.yaml"
       - ".github/workflows/security.yml"
   schedule:
-    # Weekly, so new advisories against unchanged lockfiles still surface.
-    - cron: "0 13 * * 1"
+    # Monthly security audit (first day at 13:00 UTC).
+    - cron: "0 13 1 * *"
   workflow_dispatch:
 
 permissions:
